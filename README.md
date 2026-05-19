@@ -9,6 +9,8 @@ window, and sends the barcode to the industrial scanner logger TCP receiver.
 
 - C# WinForms project targeting `net10.0-windows`.
 - Current version: `v0.1.0`.
+- The release executable is framework-dependent. Windows PCs must have the
+  .NET 10 Desktop Runtime installed before running it.
 - Default receiver target: `127.0.0.1:55256`.
 - Scans are sent as one UTF-8 barcode followed by `CRLF`, matching the scanner
   TCP frame shape the logger already accepts.
@@ -48,17 +50,19 @@ dotnet build .\UsbScannerClient.sln
 
 ## Windows Executable
 
-For a normal release build that requires the .NET Desktop Runtime on the target
-PC:
+The release workflow and local publish command intentionally build the version
+without .NET baked in. Install the **.NET 10 Desktop Runtime** on the Windows
+PC first:
+
+https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+
+On that page, use the Windows x64 installer under **.NET Desktop Runtime**.
+Then run `UsbScannerClient.exe`.
+
+Local publish command:
 
 ```powershell
-dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true
-```
-
-For a larger single-file executable that carries its own .NET runtime:
-
-```powershell
-dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
 ```
 
 The executable will be under:
@@ -66,6 +70,18 @@ The executable will be under:
 ```text
 bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 ```
+
+## GitHub Releases
+
+When a GitHub release is published, `.github/workflows/release.yml` builds the
+framework-dependent Windows executable and uploads it to that release as:
+
+```text
+UsbScannerClient.exe
+```
+
+GitHub automatically includes the source code `.zip` and `.tar.gz` archives on
+the same release page.
 
 For first manual testing, set the server field to the IP address or DNS name of
 the machine running `industrial-scanner-logger`, leave the port at `55256`

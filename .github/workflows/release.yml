@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild and upload the exe for.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-exe:
+    name: Build Windows exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $tag = "${{ inputs.tag }}"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish framework-dependent app
+        run: >
+          dotnet publish .\UsbScannerClient.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -o .\artifacts\publish
+
+      - name: Stage release asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .\artifacts\release | Out-Null
+          Copy-Item .\artifacts\publish\UsbScannerClient.exe .\artifacts\release\UsbScannerClient.exe
+
+      - name: Upload exe to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: >
+          gh release upload $env:RELEASE_TAG
+          .\artifacts\release\UsbScannerClient.exe
+          --repo $env:GITHUB_REPOSITORY
+          --clobber
