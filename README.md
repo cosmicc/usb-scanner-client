@@ -62,7 +62,7 @@ Then run `UsbScannerClient.exe`.
 Local publish command:
 
 ```powershell
-dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
+dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:DebugType=none -p:DebugSymbols=false
 ```
 
 The executable will be under:
