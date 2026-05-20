@@ -9,7 +9,12 @@ public partial class MainForm : Form
     private const string AppTitle = "USB Scanner Client";
 
     private readonly TcpScannerConnection scannerConnection = new();
+    private readonly List<BufferedScan> bufferedScans = [];
+    private readonly System.Windows.Forms.Timer scanIdleTimer = new();
     private AppSettings settings = AppSettingsStore.Load();
+    private bool isFlushing;
+    private bool isSubmitting;
+    private bool suppressInputTimer;
     private int totalScansTaken;
     private int totalScansSent;
     private int shortScansSent;
@@ -21,6 +26,7 @@ public partial class MainForm : Form
         InitializeComponent();
         Text = $"{AppTitle} v{GetVersion()}";
         lastBarcodeValueLabel.Text = "None";
+        ConfigureScanIdleTimer();
         UpdateServerStatus();
         UpdateStatsStatusLine();
     }
@@ -38,6 +44,7 @@ public partial class MainForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        scanIdleTimer.Stop();
         SaveSettings();
         scannerConnection.Disconnect();
         scannerConnection.Dispose();
@@ -62,7 +69,7 @@ public partial class MainForm : Form
         await ConnectToServerAsync();
     }
 
-    private void SettingsButton_Click(object? sender, EventArgs e)
+    private async void SettingsButton_Click(object? sender, EventArgs e)
     {
         AppSettings oldSettings = settings.Copy();
 
@@ -74,12 +81,18 @@ public partial class MainForm : Form
         }
 
         settings = settingsForm.Settings;
+        ConfigureScanIdleTimer();
         SaveSettings();
 
         if (scannerConnection.IsConnected && !oldSettings.HasSameReceiver(settings))
         {
             scannerConnection.Disconnect();
             UpdateServerStatus();
+        }
+
+        if (scannerConnection.IsConnected)
+        {
+            await FlushBufferedScansAsync();
         }
 
         UpdateStatsStatusLine();
@@ -94,11 +107,45 @@ public partial class MainForm : Form
         }
 
         e.SuppressKeyPress = true;
+        scanIdleTimer.Stop();
+        await SubmitCurrentScanAsync();
+    }
+
+    private async void ScanInputTextBox_KeyPress(object? sender, KeyPressEventArgs e)
+    {
+        if (e.KeyChar is not ('\r' or '\n'))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        scanIdleTimer.Stop();
+        await SubmitCurrentScanAsync();
+    }
+
+    private void ScanInputTextBox_TextChanged(object? sender, EventArgs e)
+    {
+        if (suppressInputTimer)
+        {
+            return;
+        }
+
+        scanIdleTimer.Stop();
+        if (scanInputTextBox.TextLength > 0)
+        {
+            scanIdleTimer.Start();
+        }
+    }
+
+    private async void ScanIdleTimer_Tick(object? sender, EventArgs e)
+    {
+        scanIdleTimer.Stop();
         await SubmitCurrentScanAsync();
     }
 
     private async void SendButton_Click(object? sender, EventArgs e)
     {
+        scanIdleTimer.Stop();
         await SubmitCurrentScanAsync();
     }
 
@@ -118,6 +165,7 @@ public partial class MainForm : Form
         {
             await scannerConnection.ConnectAsync(settings, CancellationToken.None);
             UpdateServerStatus();
+            await FlushBufferedScansAsync();
         }
         catch (OperationCanceledException)
         {
@@ -139,6 +187,12 @@ public partial class MainForm : Form
 
     private async Task SubmitCurrentScanAsync()
     {
+        if (isSubmitting)
+        {
+            return;
+        }
+
+        scanIdleTimer.Stop();
         string rawBarcode = scanInputTextBox.Text.Trim();
         if (rawBarcode.Length == 0)
         {
@@ -146,66 +200,144 @@ public partial class MainForm : Form
             return;
         }
 
-        SaveSettings();
-        totalScansTaken++;
-
-        BarcodeValidationResult validation = BarcodeValidator.Validate(rawBarcode);
-        var scan = new ScanRecord(validation.Barcode)
+        isSubmitting = true;
+        try
         {
-            Message = validation.Message
-        };
+            SaveSettings();
+            totalScansTaken++;
 
-        DataGridViewRow row = AddScanRow(scan);
-        lastBarcodeValueLabel.Text = validation.Barcode;
-        scanInputTextBox.Clear();
+            BarcodeValidationResult validation = BarcodeValidator.Validate(rawBarcode);
+            var scan = new ScanRecord(validation.Barcode)
+            {
+                Message = validation.Message
+            };
 
-        if (!validation.CanSend)
+            DataGridViewRow row = AddScanRow(scan);
+            lastBarcodeValueLabel.Text = validation.Barcode;
+            ClearScanInput();
+
+            if (!validation.CanSend)
+            {
+                rejectedScans++;
+                scan.Status = ScanSendStatus.Rejected;
+                UpdateScanRow(row, scan);
+                return;
+            }
+
+            var bufferedScan = new BufferedScan(scan, row, validation.IsShortScan);
+            if (!scannerConnection.IsConnected)
+            {
+                QueueBufferedScan(bufferedScan, "Queued until server connects");
+                return;
+            }
+
+            SetBusyState(true);
+            bool sent = await TrySendScanAsync(bufferedScan);
+            if (!sent)
+            {
+                bufferedScans.Insert(0, bufferedScan);
+            }
+        }
+        finally
         {
-            rejectedScans++;
-            scan.Status = ScanSendStatus.Rejected;
-            UpdateScanRow(row, scan);
+            isSubmitting = false;
+            SetBusyState(false);
+            UpdateServerStatus();
             UpdateStatsStatusLine();
             scanInputTextBox.Focus();
+        }
+    }
+
+    private async Task FlushBufferedScansAsync()
+    {
+        if (isFlushing || !scannerConnection.IsConnected || bufferedScans.Count == 0)
+        {
             return;
         }
 
-        SetBusyState(true);
-        UpdateScanRow(row, scan, "Sending");
+        isFlushing = true;
+        try
+        {
+            while (bufferedScans.Count > 0 && scannerConnection.IsConnected)
+            {
+                BufferedScan bufferedScan = bufferedScans[0];
+                bufferedScans.RemoveAt(0);
+
+                bool sent = await TrySendScanAsync(bufferedScan);
+                if (!sent)
+                {
+                    bufferedScans.Insert(0, bufferedScan);
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            isFlushing = false;
+            UpdateStatsStatusLine();
+        }
+    }
+
+    private async Task<bool> TrySendScanAsync(BufferedScan bufferedScan)
+    {
+        UpdateScanRow(bufferedScan.Row, bufferedScan.Scan, "Sending");
 
         try
         {
-            await scannerConnection.SendScanAsync(validation.Barcode, settings, CancellationToken.None);
+            await scannerConnection.SendScanAsync(
+                bufferedScan.Scan.Barcode,
+                settings,
+                CancellationToken.None);
+
             totalScansSent++;
-            if (validation.IsShortScan)
+            if (bufferedScan.IsShortScan)
             {
                 shortScansSent++;
             }
 
-            scan.Status = ScanSendStatus.Sent;
-            scan.Message = validation.IsShortScan
+            bufferedScan.Scan.Status = ScanSendStatus.Sent;
+            bufferedScan.Scan.Message = bufferedScan.IsShortScan
                 ? $"Short scan sent for failed-scan logging to {settings.ServerHost}:{settings.ServerPort}"
                 : $"Sent to {settings.ServerHost}:{settings.ServerPort}";
+            UpdateScanRow(bufferedScan.Row, bufferedScan.Scan);
+            return true;
         }
         catch (OperationCanceledException)
         {
             failedSends++;
-            scan.Status = ScanSendStatus.Failed;
-            scan.Message = "Timed out while sending";
+            scannerConnection.Disconnect();
+            MarkBufferedScanQueued(bufferedScan, "Queued after send timeout");
+            return false;
         }
         catch (Exception ex)
         {
             failedSends++;
-            scan.Status = ScanSendStatus.Failed;
-            scan.Message = ex.Message;
+            scannerConnection.Disconnect();
+            MarkBufferedScanQueued(bufferedScan, $"Queued after send failure: {ex.Message}");
+            return false;
         }
         finally
         {
-            UpdateScanRow(row, scan);
             UpdateServerStatus();
-            SetBusyState(false);
-            UpdateStatsStatusLine();
-            scanInputTextBox.Focus();
         }
+    }
+
+    private void QueueBufferedScan(BufferedScan bufferedScan, string message)
+    {
+        if (!bufferedScans.Contains(bufferedScan))
+        {
+            bufferedScans.Add(bufferedScan);
+        }
+
+        MarkBufferedScanQueued(bufferedScan, message);
+    }
+
+    private void MarkBufferedScanQueued(BufferedScan bufferedScan, string message)
+    {
+        bufferedScan.Scan.Status = ScanSendStatus.Queued;
+        bufferedScan.Scan.Message = message;
+        UpdateScanRow(bufferedScan.Row, bufferedScan.Scan);
+        UpdateStatsStatusLine();
     }
 
     private DataGridViewRow AddScanRow(ScanRecord scan)
@@ -252,8 +384,29 @@ public partial class MainForm : Form
     {
         statusLabel.Text =
             $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
-            + $"Short sent: {shortScansSent}   Send failures: {failedSends}   "
-            + $"Rejected: {rejectedScans}";
+            + $"Queued: {bufferedScans.Count}   Short sent: {shortScansSent}   "
+            + $"Send failures: {failedSends}   Rejected: {rejectedScans}";
+    }
+
+    private void ConfigureScanIdleTimer()
+    {
+        scanIdleTimer.Stop();
+        scanIdleTimer.Interval = Math.Max(100, settings.ScanIdleTimeoutMilliseconds);
+        scanIdleTimer.Tick -= ScanIdleTimer_Tick;
+        scanIdleTimer.Tick += ScanIdleTimer_Tick;
+    }
+
+    private void ClearScanInput()
+    {
+        suppressInputTimer = true;
+        try
+        {
+            scanInputTextBox.Clear();
+        }
+        finally
+        {
+            suppressInputTimer = false;
+        }
     }
 
     private static string GetVersion()
@@ -263,4 +416,6 @@ public partial class MainForm : Form
             ?.InformationalVersion
             ?? "0.1.0";
     }
+
+    private sealed record BufferedScan(ScanRecord Scan, DataGridViewRow Row, bool IsShortScan);
 }

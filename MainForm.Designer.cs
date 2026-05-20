@@ -255,6 +255,8 @@ partial class MainForm
         scanInputTextBox.Size = new Size(702, 23);
         scanInputTextBox.TabIndex = 1;
         scanInputTextBox.KeyDown += ScanInputTextBox_KeyDown;
+        scanInputTextBox.KeyPress += ScanInputTextBox_KeyPress;
+        scanInputTextBox.TextChanged += ScanInputTextBox_TextChanged;
         // 
         // sendButton
         // 

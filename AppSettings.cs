@@ -8,6 +8,8 @@ internal sealed class AppSettings
 
     public int SendTimeoutMilliseconds { get; set; } = 5000;
 
+    public int ScanIdleTimeoutMilliseconds { get; set; } = 250;
+
     public bool AutoConnect { get; set; }
 
     public AppSettings Copy()
@@ -17,6 +19,7 @@ internal sealed class AppSettings
             ServerHost = ServerHost,
             ServerPort = ServerPort,
             SendTimeoutMilliseconds = SendTimeoutMilliseconds,
+            ScanIdleTimeoutMilliseconds = ScanIdleTimeoutMilliseconds,
             AutoConnect = AutoConnect
         };
     }

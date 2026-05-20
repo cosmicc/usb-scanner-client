@@ -5,6 +5,7 @@ internal sealed class SettingsForm : Form
     private readonly TextBox serverHostTextBox = new();
     private readonly NumericUpDown serverPortNumericUpDown = new();
     private readonly NumericUpDown timeoutNumericUpDown = new();
+    private readonly NumericUpDown scanIdleTimeoutNumericUpDown = new();
     private readonly CheckBox autoConnectCheckBox = new();
 
     public SettingsForm(AppSettings settings)
@@ -23,18 +24,19 @@ internal sealed class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(430, 220);
+        ClientSize = new Size(430, 258);
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(14),
             ColumnCount = 2,
-            RowCount = 5
+            RowCount = 6
         };
 
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F));
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
@@ -48,10 +50,15 @@ internal sealed class SettingsForm : Form
         timeoutNumericUpDown.Maximum = 30000;
         timeoutNumericUpDown.Increment = 500;
 
+        scanIdleTimeoutNumericUpDown.Minimum = 100;
+        scanIdleTimeoutNumericUpDown.Maximum = 2000;
+        scanIdleTimeoutNumericUpDown.Increment = 50;
+
         AddLabeledControl(rootLayout, "Server", serverHostTextBox, 0);
         AddLabeledControl(rootLayout, "Port", serverPortNumericUpDown, 1);
         AddLabeledControl(rootLayout, "Timeout ms", timeoutNumericUpDown, 2);
-        AddLabeledControl(rootLayout, "Startup", autoConnectCheckBox, 3);
+        AddLabeledControl(rootLayout, "Scan idle ms", scanIdleTimeoutNumericUpDown, 3);
+        AddLabeledControl(rootLayout, "Startup", autoConnectCheckBox, 4);
 
         autoConnectCheckBox.Text = "Connect automatically";
         autoConnectCheckBox.Anchor = AnchorStyles.Left;
@@ -82,7 +89,7 @@ internal sealed class SettingsForm : Form
         buttonPanel.Controls.Add(okButton);
         buttonPanel.Controls.Add(cancelButton);
 
-        rootLayout.Controls.Add(buttonPanel, 1, 4);
+        rootLayout.Controls.Add(buttonPanel, 1, 5);
 
         AcceptButton = okButton;
         CancelButton = cancelButton;
@@ -113,6 +120,7 @@ internal sealed class SettingsForm : Form
         serverHostTextBox.Text = Settings.ServerHost;
         serverPortNumericUpDown.Value = Settings.ServerPort;
         timeoutNumericUpDown.Value = Settings.SendTimeoutMilliseconds;
+        scanIdleTimeoutNumericUpDown.Value = Settings.ScanIdleTimeoutMilliseconds;
         autoConnectCheckBox.Checked = Settings.AutoConnect;
     }
 
@@ -137,6 +145,7 @@ internal sealed class SettingsForm : Form
             ServerHost = serverHost,
             ServerPort = decimal.ToInt32(serverPortNumericUpDown.Value),
             SendTimeoutMilliseconds = decimal.ToInt32(timeoutNumericUpDown.Value),
+            ScanIdleTimeoutMilliseconds = decimal.ToInt32(scanIdleTimeoutNumericUpDown.Value),
             AutoConnect = autoConnectCheckBox.Checked
         };
     }

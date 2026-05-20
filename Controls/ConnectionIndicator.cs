@@ -45,8 +45,8 @@ internal sealed class ConnectionIndicator : Control
         Rectangle bounds = ClientRectangle;
         bounds.Inflate(-2, -2);
 
-        Color fill = IsConnected ? Color.FromArgb(24, 156, 78) : Color.FromArgb(196, 43, 43);
-        Color border = IsConnected ? Color.FromArgb(14, 105, 52) : Color.FromArgb(126, 25, 25);
+        Color fill = IsConnected ? Color.FromArgb(0, 225, 85) : Color.FromArgb(255, 45, 45);
+        Color border = IsConnected ? Color.FromArgb(0, 145, 54) : Color.FromArgb(178, 0, 0);
 
         using var fillBrush = new SolidBrush(fill);
         using var borderPen = new Pen(border, 1.4F);

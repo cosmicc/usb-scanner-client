@@ -3,6 +3,7 @@ namespace UsbScannerClient.Models;
 internal enum ScanSendStatus
 {
     Pending,
+    Queued,
     Sent,
     Failed,
     Rejected

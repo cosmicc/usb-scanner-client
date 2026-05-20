@@ -8,24 +8,41 @@ window, and sends the barcode to the industrial scanner logger TCP receiver.
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v0.1.0-beta.1`.
+- Current version: `v1.0.0`.
 - The release executable is framework-dependent. Windows PCs must have the
   .NET 10 Desktop Runtime installed before running it.
 - Default receiver target: `127.0.0.1:55256`.
 - Scans are sent as one UTF-8 barcode followed by `CRLF`, matching the scanner
   TCP frame shape the logger already accepts.
+- Scans complete when the scanner sends Enter/CR/LF, or when the configurable
+  scan idle timeout expires for scanners that do not send a terminator.
 - The TCP connection is kept open so this client behaves like a network scanner.
+- If the server is disconnected, valid scans are held in an in-memory queue and
+  sent in order after the server connects.
 - The window shows receiver connection state with a red/green indicator and the
   last barcode scanned.
-- Receiver host, port, timeout, and auto-connect are managed in the separate
-  Settings window.
+- Receiver host, port, timeout, scan idle timeout, and auto-connect are managed
+  in the separate Settings window.
 - The on-screen log records captured time, barcode, send status, and errors.
-- The lower status bar shows session totals: total scans, sent scans, short
-  scans sent for failed-scan logging, send failures, and rejected scans.
+- The lower status bar shows session totals: total scans, sent scans, queued
+  scans, short scans sent for failed-scan logging, send failures, and rejected
+  scans.
 - Settings are saved to `%APPDATA%\UsbScannerClient\settings.json`.
 
 The paired `industrial-scanner-logger` receiver reads TCP data, splits barcode
 events on `CR`, `LF`, or `CRLF`, and defaults to port `55256`.
+
+## Scan Completion and Buffering
+
+Most USB scanners type the barcode and then send Enter. For scanners that do not
+send Enter/CR/LF, the client treats the barcode as complete after the configured
+scan idle timeout, which defaults to `250 ms`.
+
+If the receiver is disconnected, valid 34-digit and short numeric scans are
+queued in memory. Press `Connect` to reconnect; once the TCP connection is open,
+the queued scans are sent to the server in the order they were captured.
+Rejected scans are not queued or sent. The queue is not persisted if the app is
+closed before reconnecting.
 
 ## Scan Rules
 
