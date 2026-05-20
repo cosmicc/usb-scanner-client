@@ -1,13 +1,13 @@
 name: Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild and upload the exe for.
+        description: Existing tag to build and publish as a release.
         required: true
         type: string
 
@@ -24,9 +24,9 @@ jobs:
         id: release
         shell: pwsh
         run: |
-          $tag = "${{ github.event.release.tag_name }}"
+          $tag = "${{ inputs.tag }}"
           if ([string]::IsNullOrWhiteSpace($tag)) {
-            $tag = "${{ inputs.tag }}"
+            $tag = "${{ github.ref_name }}"
           }
           "tag=$tag" >> $env:GITHUB_OUTPUT
 
@@ -57,12 +57,32 @@ jobs:
           New-Item -ItemType Directory -Force .\artifacts\release | Out-Null
           Copy-Item .\artifacts\publish\UsbScannerClient.exe .\artifacts\release\UsbScannerClient.exe
 
-      - name: Upload exe to release
+      - name: Publish release with exe
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: >
-          gh release upload $env:RELEASE_TAG
-          .\artifacts\release\UsbScannerClient.exe
-          --repo $env:GITHUB_REPOSITORY
-          --clobber
+          RELEASE_TITLE: USB Scanner Client ${{ steps.release.outputs.tag }}
+        run: |
+          $notesPath = ".\artifacts\release\release-notes.md"
+          $notes = @"
+          USB Scanner Client $env:RELEASE_TAG
+
+          This release includes the framework-dependent Windows executable.
+          Install the .NET 10 Desktop Runtime before running UsbScannerClient.exe:
+          https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+          "@
+          Set-Content -Path $notesPath -Value $notes -Encoding UTF8
+
+          gh release create "$env:RELEASE_TAG" `
+            ".\artifacts\release\UsbScannerClient.exe" `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --title "$env:RELEASE_TITLE" `
+            --notes-file "$notesPath" `
+            --draft `
+            --verify-tag
+
+          gh release edit "$env:RELEASE_TAG" `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --draft=false `
+            --latest

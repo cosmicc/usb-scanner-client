@@ -90,8 +90,9 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-When a GitHub release is published, `.github/workflows/release.yml` builds the
-framework-dependent Windows executable and uploads it to that release as:
+Pushing a version tag such as `v1.0.0` runs `.github/workflows/release.yml`.
+The workflow builds the framework-dependent Windows executable, creates the
+GitHub release, and uploads the executable as:
 
 ```text
 UsbScannerClient.exe
