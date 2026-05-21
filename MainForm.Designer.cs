@@ -13,6 +13,7 @@ partial class MainForm
     private Label serverStatusValueLabel = null!;
     private Button connectButton = null!;
     private Button settingsButton = null!;
+    private Button clearQueueButton = null!;
     private Label lastBarcodeCaptionLabel = null!;
     private Label lastBarcodeValueLabel = null!;
     private GroupBox scanGroupBox = null!;
@@ -20,7 +21,6 @@ partial class MainForm
     private Label scanInputLabel = null!;
     private TextBox scanInputTextBox = null!;
     private Button sendButton = null!;
-    private Button clearLogButton = null!;
     private DataGridView scanLogGrid = null!;
     private DataGridViewTextBoxColumn CapturedAtColumn = null!;
     private DataGridViewTextBoxColumn BarcodeColumn = null!;
@@ -50,6 +50,7 @@ partial class MainForm
         serverStatusValueLabel = new Label();
         connectButton = new Button();
         settingsButton = new Button();
+        clearQueueButton = new Button();
         lastBarcodeCaptionLabel = new Label();
         lastBarcodeValueLabel = new Label();
         scanGroupBox = new GroupBox();
@@ -57,7 +58,6 @@ partial class MainForm
         scanInputLabel = new Label();
         scanInputTextBox = new TextBox();
         sendButton = new Button();
-        clearLogButton = new Button();
         scanLogGrid = new DataGridView();
         CapturedAtColumn = new DataGridViewTextBoxColumn();
         BarcodeColumn = new DataGridViewTextBoxColumn();
@@ -73,9 +73,9 @@ partial class MainForm
         ((System.ComponentModel.ISupportInitialize)scanLogGrid).BeginInit();
         statusStrip.SuspendLayout();
         SuspendLayout();
-        // 
+        //
         // rootLayout
-        // 
+        //
         rootLayout.ColumnCount = 1;
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         rootLayout.Controls.Add(statusGroupBox, 0, 0);
@@ -91,9 +91,9 @@ partial class MainForm
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         rootLayout.Size = new Size(1040, 619);
         rootLayout.TabIndex = 0;
-        // 
+        //
         // statusGroupBox
-        // 
+        //
         statusGroupBox.Controls.Add(statusPanel);
         statusGroupBox.Dock = DockStyle.Fill;
         statusGroupBox.Location = new Point(15, 15);
@@ -102,15 +102,16 @@ partial class MainForm
         statusGroupBox.TabIndex = 0;
         statusGroupBox.TabStop = false;
         statusGroupBox.Text = "Connection Status";
-        // 
+        //
         // statusPanel
         // 
-        statusPanel.ColumnCount = 7;
+        statusPanel.ColumnCount = 8;
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98F));
+        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         statusPanel.Controls.Add(serverStatusCaptionLabel, 0, 0);
@@ -118,8 +119,9 @@ partial class MainForm
         statusPanel.Controls.Add(serverStatusValueLabel, 2, 0);
         statusPanel.Controls.Add(connectButton, 3, 0);
         statusPanel.Controls.Add(settingsButton, 4, 0);
-        statusPanel.Controls.Add(lastBarcodeCaptionLabel, 5, 0);
-        statusPanel.Controls.Add(lastBarcodeValueLabel, 6, 0);
+        statusPanel.Controls.Add(clearQueueButton, 5, 0);
+        statusPanel.Controls.Add(lastBarcodeCaptionLabel, 6, 0);
+        statusPanel.Controls.Add(lastBarcodeValueLabel, 7, 0);
         statusPanel.Dock = DockStyle.Fill;
         statusPanel.Location = new Point(3, 19);
         statusPanel.Name = "statusPanel";
@@ -182,15 +184,27 @@ partial class MainForm
         settingsButton.Text = "Settings...";
         settingsButton.UseVisualStyleBackColor = true;
         settingsButton.Click += SettingsButton_Click;
-        // 
+        //
+        // clearQueueButton
+        //
+        clearQueueButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        clearQueueButton.Enabled = false;
+        clearQueueButton.Location = new Point(497, 12);
+        clearQueueButton.Name = "clearQueueButton";
+        clearQueueButton.Size = new Size(102, 25);
+        clearQueueButton.TabIndex = 5;
+        clearQueueButton.Text = "Clear Queue";
+        clearQueueButton.UseVisualStyleBackColor = true;
+        clearQueueButton.Click += ClearQueueButton_Click;
+        //
         // lastBarcodeCaptionLabel
-        // 
+        //
         lastBarcodeCaptionLabel.Anchor = AnchorStyles.Left;
         lastBarcodeCaptionLabel.AutoSize = true;
-        lastBarcodeCaptionLabel.Location = new Point(497, 17);
+        lastBarcodeCaptionLabel.Location = new Point(605, 17);
         lastBarcodeCaptionLabel.Name = "lastBarcodeCaptionLabel";
         lastBarcodeCaptionLabel.Size = new Size(73, 15);
-        lastBarcodeCaptionLabel.TabIndex = 5;
+        lastBarcodeCaptionLabel.TabIndex = 6;
         lastBarcodeCaptionLabel.Text = "Last barcode";
         // 
         // lastBarcodeValueLabel
@@ -198,10 +212,10 @@ partial class MainForm
         lastBarcodeValueLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         lastBarcodeValueLabel.AutoEllipsis = true;
         lastBarcodeValueLabel.Font = new Font("Consolas", 10F, FontStyle.Bold);
-        lastBarcodeValueLabel.Location = new Point(609, 13);
+        lastBarcodeValueLabel.Location = new Point(717, 13);
         lastBarcodeValueLabel.Name = "lastBarcodeValueLabel";
-        lastBarcodeValueLabel.Size = new Size(382, 24);
-        lastBarcodeValueLabel.TabIndex = 6;
+        lastBarcodeValueLabel.Size = new Size(274, 24);
+        lastBarcodeValueLabel.TabIndex = 7;
         lastBarcodeValueLabel.Text = "None";
         lastBarcodeValueLabel.TextAlign = ContentAlignment.MiddleLeft;
         // 
@@ -218,15 +232,13 @@ partial class MainForm
         // 
         // scanPanel
         // 
-        scanPanel.ColumnCount = 4;
+        scanPanel.ColumnCount = 3;
         scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76F));
         scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
         scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
         scanPanel.Controls.Add(scanInputLabel, 0, 0);
         scanPanel.Controls.Add(scanInputTextBox, 1, 0);
         scanPanel.Controls.Add(sendButton, 2, 0);
-        scanPanel.Controls.Add(clearLogButton, 3, 0);
         scanPanel.Dock = DockStyle.Fill;
         scanPanel.Location = new Point(3, 19);
         scanPanel.Name = "scanPanel";
@@ -252,7 +264,7 @@ partial class MainForm
         scanInputTextBox.Font = new Font("Consolas", 10F);
         scanInputTextBox.Location = new Point(89, 15);
         scanInputTextBox.Name = "scanInputTextBox";
-        scanInputTextBox.Size = new Size(702, 23);
+        scanInputTextBox.Size = new Size(802, 23);
         scanInputTextBox.TabIndex = 1;
         scanInputTextBox.KeyDown += ScanInputTextBox_KeyDown;
         scanInputTextBox.KeyPress += ScanInputTextBox_KeyPress;
@@ -261,24 +273,13 @@ partial class MainForm
         // sendButton
         // 
         sendButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        sendButton.Location = new Point(797, 15);
+        sendButton.Location = new Point(897, 15);
         sendButton.Name = "sendButton";
         sendButton.Size = new Size(94, 25);
         sendButton.TabIndex = 2;
         sendButton.Text = "Send";
         sendButton.UseVisualStyleBackColor = true;
         sendButton.Click += SendButton_Click;
-        // 
-        // clearLogButton
-        // 
-        clearLogButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        clearLogButton.Location = new Point(897, 15);
-        clearLogButton.Name = "clearLogButton";
-        clearLogButton.Size = new Size(94, 25);
-        clearLogButton.TabIndex = 3;
-        clearLogButton.Text = "Clear";
-        clearLogButton.UseVisualStyleBackColor = true;
-        clearLogButton.Click += ClearLogButton_Click;
         // 
         // scanLogGrid
         // 

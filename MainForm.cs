@@ -12,6 +12,8 @@ public partial class MainForm : Form
     private readonly List<BufferedScan> bufferedScans = [];
     private readonly System.Windows.Forms.Timer scanIdleTimer = new();
     private AppSettings settings = AppSettingsStore.Load();
+    private bool isApplyingUpdate;
+    private bool isBusy;
     private bool isCheckingForUpdates;
     private bool isFlushing;
     private bool isSubmitting;
@@ -27,6 +29,7 @@ public partial class MainForm : Form
         InitializeComponent();
         Text = $"{AppTitle} v{GetVersion()}";
         lastBarcodeValueLabel.Text = "None";
+        RestoreQueuedScans();
         ConfigureScanIdleTimer();
         UpdateServerStatus();
         UpdateStatsStatusLine();
@@ -51,6 +54,14 @@ public partial class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         scanIdleTimer.Stop();
+        if (!isApplyingUpdate && bufferedScans.Count > 0 && !ConfirmCloseWithQueuedScans())
+        {
+            e.Cancel = true;
+            scanInputTextBox.Focus();
+            return;
+        }
+
+        PersistBufferedScans();
         SaveSettings();
         scannerConnection.Disconnect();
         scannerConnection.Dispose();
@@ -160,9 +171,46 @@ public partial class MainForm : Form
         await SubmitCurrentScanAsync();
     }
 
-    private void ClearLogButton_Click(object? sender, EventArgs e)
+    private void ClearQueueButton_Click(object? sender, EventArgs e)
     {
-        scanLogGrid.Rows.Clear();
+        if (bufferedScans.Count == 0)
+        {
+            MessageBox.Show(
+                this,
+                "There are no queued scans to clear.",
+                "Clear Queue",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            scanInputTextBox.Focus();
+            return;
+        }
+
+        DialogResult result = MessageBox.Show(
+            this,
+            $"There are {bufferedScans.Count} scans still queued and not sent to the server.\n\n"
+                + "Clear the queue anyway?",
+            "Clear Queued Scans?",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        if (result != DialogResult.Yes)
+        {
+            scanInputTextBox.Focus();
+            return;
+        }
+
+        foreach (BufferedScan bufferedScan in bufferedScans.ToList())
+        {
+            if (bufferedScan.Row.DataGridView is not null)
+            {
+                scanLogGrid.Rows.Remove(bufferedScan.Row);
+            }
+        }
+
+        bufferedScans.Clear();
+        PersistBufferedScans();
+        UpdateStatsStatusLine();
         scanInputTextBox.Focus();
     }
 
@@ -247,6 +295,7 @@ public partial class MainForm : Form
             if (!sent)
             {
                 bufferedScans.Insert(0, bufferedScan);
+                PersistBufferedScans();
             }
         }
         finally
@@ -272,14 +321,15 @@ public partial class MainForm : Form
             while (bufferedScans.Count > 0 && scannerConnection.IsConnected)
             {
                 BufferedScan bufferedScan = bufferedScans[0];
-                bufferedScans.RemoveAt(0);
 
                 bool sent = await TrySendScanAsync(bufferedScan);
                 if (!sent)
                 {
-                    bufferedScans.Insert(0, bufferedScan);
                     break;
                 }
+
+                bufferedScans.RemoveAt(0);
+                PersistBufferedScans();
             }
         }
         finally
@@ -348,7 +398,54 @@ public partial class MainForm : Form
         bufferedScan.Scan.Status = ScanSendStatus.Queued;
         bufferedScan.Scan.Message = message;
         UpdateScanRow(bufferedScan.Row, bufferedScan.Scan);
+        PersistBufferedScans();
         UpdateStatsStatusLine();
+    }
+
+    private void RestoreQueuedScans()
+    {
+        foreach (QueuedScanFileRecord queuedScan in QueuedScanStore.Load())
+        {
+            var scan = new ScanRecord(queuedScan.Barcode, queuedScan.CapturedAt)
+            {
+                Status = ScanSendStatus.Queued,
+                Message = string.IsNullOrWhiteSpace(queuedScan.Message)
+                    ? "Queued from previous session"
+                    : queuedScan.Message
+            };
+
+            DataGridViewRow row = AddScanRow(scan);
+            bufferedScans.Add(new BufferedScan(scan, row, queuedScan.IsShortScan));
+            lastBarcodeValueLabel.Text = scan.Barcode;
+        }
+
+        PersistBufferedScans();
+    }
+
+    private void PersistBufferedScans()
+    {
+        QueuedScanStore.Save(bufferedScans.Select(bufferedScan => new QueuedScanFileRecord
+        {
+            CapturedAt = bufferedScan.Scan.CapturedAt,
+            Barcode = bufferedScan.Scan.Barcode,
+            IsShortScan = bufferedScan.IsShortScan,
+            Message = bufferedScan.Scan.Message
+        }));
+    }
+
+    private bool ConfirmCloseWithQueuedScans()
+    {
+        DialogResult result = MessageBox.Show(
+            this,
+            $"There are {bufferedScans.Count} scans still queued and not sent to the server.\n\n"
+                + "They will be saved and restored the next time the app opens.\n\n"
+                + "Close the app anyway?",
+            "Queued Scans Not Sent",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        return result == DialogResult.Yes;
     }
 
     private DataGridViewRow AddScanRow(ScanRecord scan)
@@ -371,10 +468,12 @@ public partial class MainForm : Form
 
     private void SetBusyState(bool isBusy)
     {
+        this.isBusy = isBusy;
         connectButton.Enabled = !isBusy;
         settingsButton.Enabled = !isBusy;
         sendButton.Enabled = !isBusy;
         scanInputTextBox.Enabled = !isBusy;
+        UpdateClearQueueButtonState();
         UseWaitCursor = isBusy;
     }
 
@@ -397,6 +496,12 @@ public partial class MainForm : Form
             $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
             + $"Queued: {bufferedScans.Count}   Short sent: {shortScansSent}   "
             + $"Send failures: {failedSends}   Rejected: {rejectedScans}";
+        UpdateClearQueueButtonState();
+    }
+
+    private void UpdateClearQueueButtonState()
+    {
+        clearQueueButton.Enabled = !isBusy && bufferedScans.Count > 0;
     }
 
     private async Task CheckForUpdatesAsync(IWin32Window owner, bool showNoUpdateMessage)
@@ -430,7 +535,7 @@ public partial class MainForm : Form
                 {
                     MessageBox.Show(
                         owner,
-                        $"USB Scanner Client v{AppUpdateService.GetCurrentVersionText()} is up to date.",
+                        $"No new updates available.\n\nCurrent version: v{AppUpdateService.GetCurrentVersionText()}",
                         "No Update Available",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
@@ -507,6 +612,8 @@ public partial class MainForm : Form
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
 
+            PersistBufferedScans();
+            isApplyingUpdate = true;
             AppUpdateService.ApplyDownloadedUpdateAndRestart(destinationPath);
             Application.Exit();
         }

@@ -11,9 +11,9 @@ internal enum ScanSendStatus
 
 internal sealed class ScanRecord
 {
-    public ScanRecord(string barcode)
+    public ScanRecord(string barcode, DateTimeOffset? capturedAt = null)
     {
-        CapturedAt = DateTimeOffset.Now;
+        CapturedAt = capturedAt ?? DateTimeOffset.Now;
         Barcode = barcode;
     }
 

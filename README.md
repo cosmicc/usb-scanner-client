@@ -17,8 +17,8 @@ window, and sends the barcode to the industrial scanner logger TCP receiver.
 - Scans complete when the scanner sends Enter/CR/LF, or when the configurable
   scan idle timeout expires for scanners that do not send a terminator.
 - The TCP connection is kept open so this client behaves like a network scanner.
-- If the server is disconnected, valid scans are held in an in-memory queue and
-  sent in order after the server connects.
+- If the server is disconnected, valid scans are held in a queue and saved to
+  `%APPDATA%\UsbScannerClient\queued-scans.json` until they are sent.
 - The window shows receiver connection state with a red/green indicator and the
   last barcode scanned.
 - Receiver host, port, timeout, scan idle timeout, and auto-connect are managed
@@ -41,10 +41,15 @@ send Enter/CR/LF, the client treats the barcode as complete after the configured
 scan idle timeout, which defaults to `250 ms`.
 
 If the receiver is disconnected, valid 34-digit and short numeric scans are
-queued in memory. Press `Connect` to reconnect; once the TCP connection is open,
-the queued scans are sent to the server in the order they were captured.
-Rejected scans are not queued or sent. The queue is not persisted if the app is
-closed before reconnecting.
+queued and written to `%APPDATA%\UsbScannerClient\queued-scans.json`. Press
+`Connect` to reconnect; once the TCP connection is open, the queued scans are
+sent to the server in the order they were captured. If the app closes before the
+queue is sent, those scans are restored into the scan list the next time the app
+opens. Rejected scans are not queued or sent.
+
+Use `Clear Queue` only when queued scans should be discarded. The app asks for
+confirmation before clearing unsent scans, and it warns on close when unsent
+queued scans remain.
 
 ## Scan Rules
 
@@ -80,14 +85,17 @@ Then run `UsbScannerClient.exe`.
 
 ## Auto Updates
 
-When auto-update is enabled, the app checks the latest non-prerelease GitHub
-release on startup and looks for the `UsbScannerClient.exe` release asset. If a
-newer version is available, it prompts before downloading or applying anything.
+When auto-update is enabled, the app checks the normal GitHub releases for this
+repository, chooses the highest non-prerelease version tag, and looks for the
+`UsbScannerClient.exe` release asset. If a newer version is available, it
+prompts before downloading or applying anything.
 
 If the update is accepted, the app downloads the new executable to a temporary
 folder, shows download progress, closes, replaces the existing executable, and
 restarts. GitHub releases and the `UsbScannerClient.exe` asset must be reachable
-from the Windows PC without a GitHub login.
+from the Windows PC. For a private repository, set the
+`USB_SCANNER_CLIENT_GITHUB_TOKEN` environment variable to a GitHub token with
+read access to the repository, or make the repository public.
 
 Local publish command:
 

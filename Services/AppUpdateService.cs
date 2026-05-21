@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
@@ -52,10 +53,12 @@ internal sealed class UpdateDownloadProgress
 
 internal sealed class AppUpdateService
 {
-    private const string LatestReleaseApiUrl =
-        "https://api.github.com/repos/cosmicc/usb-scanner-client/releases/latest";
+    private const string ReleasesApiUrl =
+        "https://api.github.com/repos/cosmicc/usb-scanner-client/releases?per_page=100";
 
     private const string ExpectedAssetName = "UsbScannerClient.exe";
+
+    private const string GitHubTokenEnvironmentVariable = "USB_SCANNER_CLIENT_GITHUB_TOKEN";
 
     private static readonly HttpClient HttpClient = CreateHttpClient();
 
@@ -63,9 +66,19 @@ internal sealed class AppUpdateService
         Version currentVersion,
         CancellationToken cancellationToken)
     {
-        using HttpResponseMessage response = await HttpClient.GetAsync(
-            LatestReleaseApiUrl,
+        using HttpRequestMessage request = CreateGitHubJsonRequest(ReleasesApiUrl);
+        using HttpResponseMessage response = await HttpClient.SendAsync(
+            request,
             cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException(
+                "GitHub returned 404 for the usb-scanner-client releases list. "
+                + "If the repository is private, make it public or set the "
+                + $"{GitHubTokenEnvironmentVariable} environment variable to a GitHub token "
+                + "with read access to the repository.");
+        }
 
         response.EnsureSuccessStatusCode();
 
@@ -74,40 +87,69 @@ internal sealed class AppUpdateService
             contentStream,
             cancellationToken: cancellationToken);
 
-        JsonElement root = document.RootElement;
-        if (!root.TryGetProperty("tag_name", out JsonElement tagElement))
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
 
-        string? tagName = tagElement.GetString();
-        if (!TryParseReleaseVersion(tagName, out Version? latestVersion, out string versionText)
-            || latestVersion is null)
+        Version? latestReleaseVersion = null;
+        string latestVersionText = string.Empty;
+        string latestReleaseUrl = string.Empty;
+        string latestAssetName = string.Empty;
+        string latestAssetUrl = string.Empty;
+        bool latestReleaseHasAsset = false;
+
+        foreach (JsonElement releaseElement in document.RootElement.EnumerateArray())
+        {
+            if (IsTruthyReleaseFlag(releaseElement, "draft")
+                || IsTruthyReleaseFlag(releaseElement, "prerelease"))
+            {
+                continue;
+            }
+
+            string? tagName = releaseElement.TryGetProperty("tag_name", out JsonElement tagElement)
+                ? tagElement.GetString()
+                : null;
+
+            if (!TryParseReleaseVersion(tagName, out Version? releaseVersion, out string versionText)
+                || releaseVersion is null)
+            {
+                continue;
+            }
+
+            if (latestReleaseVersion is not null && releaseVersion <= latestReleaseVersion)
+            {
+                continue;
+            }
+
+            latestReleaseVersion = releaseVersion;
+            latestVersionText = versionText;
+            latestReleaseUrl = releaseElement.TryGetProperty("html_url", out JsonElement urlElement)
+                ? urlElement.GetString() ?? string.Empty
+                : string.Empty;
+            latestReleaseHasAsset = TryFindExeAsset(
+                releaseElement,
+                out latestAssetName,
+                out latestAssetUrl);
+        }
+
+        if (latestReleaseVersion is null || latestReleaseVersion <= currentVersion)
         {
             return null;
         }
 
-        if (latestVersion <= currentVersion)
-        {
-            return null;
-        }
-
-        if (!TryFindExeAsset(root, out string assetName, out string downloadUrl))
+        if (!latestReleaseHasAsset)
         {
             throw new InvalidOperationException(
-                $"Release {versionText} does not include {ExpectedAssetName}.");
+                $"Release {latestVersionText} does not include {ExpectedAssetName}.");
         }
 
-        string releaseUrl = root.TryGetProperty("html_url", out JsonElement urlElement)
-            ? urlElement.GetString() ?? string.Empty
-            : string.Empty;
-
         return new AppUpdateInfo(
-            latestVersion,
-            versionText,
-            releaseUrl,
-            assetName,
-            downloadUrl);
+            latestReleaseVersion,
+            latestVersionText,
+            latestReleaseUrl,
+            latestAssetName,
+            latestAssetUrl);
     }
 
     public async Task DownloadUpdateAsync(
@@ -129,6 +171,8 @@ internal sealed class AppUpdateService
         }
 
         using HttpRequestMessage request = new(HttpMethod.Get, update.AssetDownloadUrl);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
         using HttpResponseMessage response = await HttpClient.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
@@ -190,9 +234,9 @@ internal sealed class AppUpdateService
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion;
 
-        return string.IsNullOrWhiteSpace(informationalVersion)
-            ? GetCurrentVersion().ToString(3)
-            : informationalVersion;
+        return TryParseReleaseVersion(informationalVersion, out _, out string versionText)
+            ? versionText
+            : GetCurrentVersion().ToString(3);
     }
 
     public static string GetDownloadDestinationPath(AppUpdateInfo update)
@@ -247,9 +291,28 @@ internal sealed class AppUpdateService
         var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue("UsbScannerClient", GetCurrentVersion().ToString(3)));
-        httpClient.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+
+        string? githubToken = Environment.GetEnvironmentVariable(GitHubTokenEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(githubToken))
+        {
+            httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", githubToken.Trim());
+        }
+
         return httpClient;
+    }
+
+    private static HttpRequestMessage CreateGitHubJsonRequest(string requestUrl)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        return request;
+    }
+
+    private static bool IsTruthyReleaseFlag(JsonElement releaseElement, string propertyName)
+    {
+        return releaseElement.TryGetProperty(propertyName, out JsonElement propertyElement)
+            && propertyElement.ValueKind == JsonValueKind.True;
     }
 
     private static bool TryFindExeAsset(
@@ -277,18 +340,26 @@ internal sealed class AppUpdateService
                 continue;
             }
 
-            string? browserDownloadUrl =
-                assetElement.TryGetProperty("browser_download_url", out JsonElement downloadElement)
-                    ? downloadElement.GetString()
+            string? assetDownloadUrl =
+                assetElement.TryGetProperty("url", out JsonElement apiUrlElement)
+                    ? apiUrlElement.GetString()
                     : null;
 
-            if (string.IsNullOrWhiteSpace(browserDownloadUrl))
+            if (string.IsNullOrWhiteSpace(assetDownloadUrl))
+            {
+                assetDownloadUrl =
+                    assetElement.TryGetProperty("browser_download_url", out JsonElement downloadElement)
+                        ? downloadElement.GetString()
+                        : null;
+            }
+
+            if (string.IsNullOrWhiteSpace(assetDownloadUrl))
             {
                 continue;
             }
 
             assetName = name ?? ExpectedAssetName;
-            downloadUrl = browserDownloadUrl;
+            downloadUrl = assetDownloadUrl;
             return true;
         }
 
