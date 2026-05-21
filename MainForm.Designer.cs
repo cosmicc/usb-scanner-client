@@ -86,10 +86,10 @@ partial class MainForm
         rootLayout.Name = "rootLayout";
         rootLayout.Padding = new Padding(12);
         rootLayout.RowCount = 3;
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 78F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 88F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        rootLayout.Size = new Size(1040, 619);
+        rootLayout.Size = new Size(1040, 646);
         rootLayout.TabIndex = 0;
         //
         // statusGroupBox
@@ -98,7 +98,7 @@ partial class MainForm
         statusGroupBox.Dock = DockStyle.Fill;
         statusGroupBox.Location = new Point(15, 15);
         statusGroupBox.Name = "statusGroupBox";
-        statusGroupBox.Size = new Size(1010, 72);
+        statusGroupBox.Size = new Size(1010, 82);
         statusGroupBox.TabIndex = 0;
         statusGroupBox.TabStop = false;
         statusGroupBox.Text = "Connection Status";
@@ -128,14 +128,14 @@ partial class MainForm
         statusPanel.Padding = new Padding(10, 10, 10, 10);
         statusPanel.RowCount = 1;
         statusPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        statusPanel.Size = new Size(1004, 50);
+        statusPanel.Size = new Size(1004, 60);
         statusPanel.TabIndex = 0;
         // 
         // serverStatusCaptionLabel
         // 
         serverStatusCaptionLabel.Anchor = AnchorStyles.Left;
         serverStatusCaptionLabel.AutoSize = true;
-        serverStatusCaptionLabel.Location = new Point(13, 17);
+        serverStatusCaptionLabel.Location = new Point(13, 20);
         serverStatusCaptionLabel.Name = "serverStatusCaptionLabel";
         serverStatusCaptionLabel.Size = new Size(104, 15);
         serverStatusCaptionLabel.TabIndex = 0;
@@ -144,7 +144,7 @@ partial class MainForm
         // serverIndicator
         // 
         serverIndicator.Anchor = AnchorStyles.None;
-        serverIndicator.Location = new Point(137, 16);
+        serverIndicator.Location = new Point(137, 21);
         serverIndicator.MaximumSize = new Size(18, 18);
         serverIndicator.MinimumSize = new Size(18, 18);
         serverIndicator.Name = "serverIndicator";
@@ -155,10 +155,10 @@ partial class MainForm
         // 
         serverStatusValueLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         serverStatusValueLabel.AutoEllipsis = true;
-        serverStatusValueLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        serverStatusValueLabel.Location = new Point(169, 14);
+        serverStatusValueLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        serverStatusValueLabel.Location = new Point(169, 16);
         serverStatusValueLabel.Name = "serverStatusValueLabel";
-        serverStatusValueLabel.Size = new Size(126, 21);
+        serverStatusValueLabel.Size = new Size(126, 27);
         serverStatusValueLabel.TabIndex = 2;
         serverStatusValueLabel.Text = "Disconnected";
         serverStatusValueLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -166,9 +166,9 @@ partial class MainForm
         // connectButton
         // 
         connectButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        connectButton.Location = new Point(301, 12);
+        connectButton.Location = new Point(301, 14);
         connectButton.Name = "connectButton";
-        connectButton.Size = new Size(92, 25);
+        connectButton.Size = new Size(92, 32);
         connectButton.TabIndex = 3;
         connectButton.Text = "Connect";
         connectButton.UseVisualStyleBackColor = true;
@@ -177,9 +177,9 @@ partial class MainForm
         // settingsButton
         // 
         settingsButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        settingsButton.Location = new Point(399, 12);
+        settingsButton.Location = new Point(399, 14);
         settingsButton.Name = "settingsButton";
-        settingsButton.Size = new Size(92, 25);
+        settingsButton.Size = new Size(92, 32);
         settingsButton.TabIndex = 4;
         settingsButton.Text = "Settings...";
         settingsButton.UseVisualStyleBackColor = true;
@@ -189,9 +189,9 @@ partial class MainForm
         //
         clearQueueButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         clearQueueButton.Enabled = false;
-        clearQueueButton.Location = new Point(497, 12);
+        clearQueueButton.Location = new Point(497, 14);
         clearQueueButton.Name = "clearQueueButton";
-        clearQueueButton.Size = new Size(102, 25);
+        clearQueueButton.Size = new Size(102, 32);
         clearQueueButton.TabIndex = 5;
         clearQueueButton.Text = "Clear Queue";
         clearQueueButton.UseVisualStyleBackColor = true;
@@ -201,7 +201,7 @@ partial class MainForm
         //
         lastBarcodeCaptionLabel.Anchor = AnchorStyles.Left;
         lastBarcodeCaptionLabel.AutoSize = true;
-        lastBarcodeCaptionLabel.Location = new Point(605, 17);
+        lastBarcodeCaptionLabel.Location = new Point(605, 20);
         lastBarcodeCaptionLabel.Name = "lastBarcodeCaptionLabel";
         lastBarcodeCaptionLabel.Size = new Size(73, 15);
         lastBarcodeCaptionLabel.TabIndex = 6;
@@ -211,10 +211,10 @@ partial class MainForm
         // 
         lastBarcodeValueLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         lastBarcodeValueLabel.AutoEllipsis = true;
-        lastBarcodeValueLabel.Font = new Font("Consolas", 10F, FontStyle.Bold);
-        lastBarcodeValueLabel.Location = new Point(717, 13);
+        lastBarcodeValueLabel.Font = new Font("Consolas", 11F, FontStyle.Bold);
+        lastBarcodeValueLabel.Location = new Point(717, 14);
         lastBarcodeValueLabel.Name = "lastBarcodeValueLabel";
-        lastBarcodeValueLabel.Size = new Size(274, 24);
+        lastBarcodeValueLabel.Size = new Size(274, 31);
         lastBarcodeValueLabel.TabIndex = 7;
         lastBarcodeValueLabel.Text = "None";
         lastBarcodeValueLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -223,9 +223,9 @@ partial class MainForm
         // 
         scanGroupBox.Controls.Add(scanPanel);
         scanGroupBox.Dock = DockStyle.Fill;
-        scanGroupBox.Location = new Point(15, 93);
+        scanGroupBox.Location = new Point(15, 103);
         scanGroupBox.Name = "scanGroupBox";
-        scanGroupBox.Size = new Size(1010, 76);
+        scanGroupBox.Size = new Size(1010, 84);
         scanGroupBox.TabIndex = 1;
         scanGroupBox.TabStop = false;
         scanGroupBox.Text = "USB Scanner Input";
@@ -245,14 +245,14 @@ partial class MainForm
         scanPanel.Padding = new Padding(10, 12, 10, 10);
         scanPanel.RowCount = 1;
         scanPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        scanPanel.Size = new Size(1004, 54);
+        scanPanel.Size = new Size(1004, 62);
         scanPanel.TabIndex = 0;
         // 
         // scanInputLabel
         // 
         scanInputLabel.Anchor = AnchorStyles.Left;
         scanInputLabel.AutoSize = true;
-        scanInputLabel.Location = new Point(13, 19);
+        scanInputLabel.Location = new Point(13, 22);
         scanInputLabel.Name = "scanInputLabel";
         scanInputLabel.Size = new Size(51, 15);
         scanInputLabel.TabIndex = 0;
@@ -261,10 +261,10 @@ partial class MainForm
         // scanInputTextBox
         // 
         scanInputTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        scanInputTextBox.Font = new Font("Consolas", 10F);
-        scanInputTextBox.Location = new Point(89, 15);
+        scanInputTextBox.Font = new Font("Consolas", 11F);
+        scanInputTextBox.Location = new Point(89, 17);
         scanInputTextBox.Name = "scanInputTextBox";
-        scanInputTextBox.Size = new Size(802, 23);
+        scanInputTextBox.Size = new Size(802, 27);
         scanInputTextBox.TabIndex = 1;
         scanInputTextBox.KeyDown += ScanInputTextBox_KeyDown;
         scanInputTextBox.KeyPress += ScanInputTextBox_KeyPress;
@@ -275,7 +275,7 @@ partial class MainForm
         sendButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         sendButton.Location = new Point(897, 15);
         sendButton.Name = "sendButton";
-        sendButton.Size = new Size(94, 25);
+        sendButton.Size = new Size(94, 32);
         sendButton.TabIndex = 2;
         sendButton.Text = "Send";
         sendButton.UseVisualStyleBackColor = true;
@@ -288,15 +288,18 @@ partial class MainForm
         scanLogGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         scanLogGrid.BackgroundColor = SystemColors.Window;
         scanLogGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        scanLogGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
         scanLogGrid.Columns.AddRange(new DataGridViewColumn[] { CapturedAtColumn, BarcodeColumn, StatusColumn, MessageColumn });
         scanLogGrid.Dock = DockStyle.Fill;
-        scanLogGrid.Location = new Point(15, 175);
+        scanLogGrid.Font = new Font("Segoe UI", 10F);
+        scanLogGrid.Location = new Point(15, 195);
         scanLogGrid.MultiSelect = false;
         scanLogGrid.Name = "scanLogGrid";
         scanLogGrid.ReadOnly = true;
         scanLogGrid.RowHeadersVisible = false;
+        scanLogGrid.RowTemplate.Height = 28;
         scanLogGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        scanLogGrid.Size = new Size(1010, 429);
+        scanLogGrid.Size = new Size(1010, 436);
         scanLogGrid.TabIndex = 2;
         // 
         // CapturedAtColumn
@@ -330,24 +333,26 @@ partial class MainForm
         // statusStrip
         // 
         statusStrip.Items.AddRange(new ToolStripItem[] { statusLabel });
-        statusStrip.Location = new Point(0, 619);
+        statusStrip.Font = new Font("Segoe UI", 10F);
+        statusStrip.Location = new Point(0, 646);
         statusStrip.Name = "statusStrip";
-        statusStrip.Size = new Size(1040, 22);
+        statusStrip.Size = new Size(1040, 24);
         statusStrip.TabIndex = 1;
         // 
         // statusLabel
         // 
         statusLabel.Name = "statusLabel";
-        statusLabel.Size = new Size(39, 17);
+        statusLabel.Size = new Size(45, 19);
         statusLabel.Text = "Ready";
         // 
         // MainForm
         // 
-        AutoScaleDimensions = new SizeF(7F, 15F);
+        AutoScaleDimensions = new SizeF(8F, 17F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(1040, 641);
+        ClientSize = new Size(1040, 670);
         Controls.Add(rootLayout);
         Controls.Add(statusStrip);
+        Font = new Font("Segoe UI", 10F);
         MinimumSize = new Size(860, 520);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;

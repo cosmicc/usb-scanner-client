@@ -43,7 +43,8 @@ internal sealed class UpdateProgressForm : Form
         ControlBox = false;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(420, 126);
+        Font = new Font("Segoe UI", 10F);
+        ClientSize = new Size(450, 140);
 
         var rootLayout = new TableLayoutPanel
         {
@@ -53,8 +54,8 @@ internal sealed class UpdateProgressForm : Form
             ColumnCount = 1
         };
 
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         statusLabel.Dock = DockStyle.Fill;

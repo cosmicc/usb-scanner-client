@@ -22,7 +22,7 @@ Without the Industrial Scanner Logger server running and reachable, this client 
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.1`.
+- Current version: `v1.0.3`.
 - The release executable is framework-dependent. Windows PCs must have the
   .NET 10 Desktop Runtime installed before running it.
 - Default receiver target: `127.0.0.1:55256`.
@@ -39,10 +39,11 @@ Without the Industrial Scanner Logger server running and reachable, this client 
   in the separate Settings window.
 - Auto-update is enabled by default. The app checks GitHub Releases at startup
   and Settings includes a `Check now` button for manual update checks.
-- The on-screen log records captured time, barcode, send status, and errors.
+- The on-screen log records captured time, barcode, send status, and errors,
+  with green rows for sent scans, yellow rows for queued scans, and red rows for
+  rejected or failed scans.
 - The lower status bar shows session totals: total scans, sent scans, queued
-  scans, short scans sent for failed-scan logging, send failures, and rejected
-  scans.
+  scans, send failures, and rejected scans.
 - Settings are saved to `%APPDATA%\UsbScannerClient\settings.json`.
 
 The paired `industrial-scanner-logger` receiver reads TCP data, splits barcode
@@ -54,12 +55,12 @@ Most USB scanners type the barcode and then send Enter. For scanners that do not
 send Enter/CR/LF, the client treats the barcode as complete after the configured
 scan idle timeout, which defaults to `250 ms`.
 
-If the receiver is disconnected, valid 34-digit and short numeric scans are
-queued and written to `%APPDATA%\UsbScannerClient\queued-scans.json`. Press
-`Connect` to reconnect; once the TCP connection is open, the queued scans are
-sent to the server in the order they were captured. If the app closes before the
-queue is sent, those scans are restored into the scan list the next time the app
-opens. Rejected scans are not queued or sent.
+If the receiver is disconnected, valid 34-digit scans are queued and written to
+`%APPDATA%\UsbScannerClient\queued-scans.json`. Press `Connect` to reconnect;
+once the TCP connection is open, the queued scans are sent to the server in the
+order they were captured. If the app closes before the queue is sent, those
+scans are restored into the scan list the next time the app opens. Rejected
+scans are not queued or sent.
 
 Use `Clear Queue` only when queued scans should be discarded. The app asks for
 confirmation before clearing unsent scans, and it warns on close when unsent
@@ -68,8 +69,10 @@ queued scans remain.
 ## Scan Rules
 
 - Normal successful payloads must be numeric and exactly 34 digits.
-- Numeric payloads shorter than 34 digits are still sent to the receiver so the
-  server can log them as failed scans.
+- Payloads shorter than 10 digits are rejected locally and are not sent or
+  queued.
+- Numeric payloads from 10 to 33 digits are rejected locally and are not sent or
+  queued.
 - Payloads longer than 34 digits are rejected locally and are not sent.
 - Non-numeric payloads are rejected locally and are not sent.
 - If the scanner is configured to emit an AIM symbology prefix, Code 128 values
@@ -125,7 +128,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.1` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.3` runs `.github/workflows/release.yml`.
 The workflow builds the framework-dependent Windows executable, creates the
 GitHub release, and uploads the executable as:
 

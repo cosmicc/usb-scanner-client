@@ -2,6 +2,7 @@ namespace UsbScannerClient.Services;
 
 internal static class BarcodeValidator
 {
+    public const int MinimumBarcodeLength = 10;
     public const int SuccessfulBarcodeLength = 34;
 
     public static BarcodeValidationResult Validate(string scannedValue)
@@ -44,14 +45,23 @@ internal static class BarcodeValidator
             return BarcodeValidationResult.Rejected(payload, "Rejected non-numeric barcode.");
         }
 
-        if (payload.Length == SuccessfulBarcodeLength)
+        if (payload.Length < MinimumBarcodeLength)
         {
-            return BarcodeValidationResult.Accepted(payload, "Valid 34-digit Code 128 payload.");
+            return BarcodeValidationResult.Rejected(
+                payload,
+                $"Rejected barcode shorter than {MinimumBarcodeLength} digits ({payload.Length} digits).");
+        }
+
+        if (payload.Length < SuccessfulBarcodeLength)
+        {
+            return BarcodeValidationResult.Rejected(
+                payload,
+                $"Rejected barcode shorter than {SuccessfulBarcodeLength} digits ({payload.Length}/{SuccessfulBarcodeLength} digits).");
         }
 
         return BarcodeValidationResult.Accepted(
             payload,
-            $"Short barcode sent for failed-scan logging ({payload.Length}/{SuccessfulBarcodeLength} digits).");
+            "Valid 34-digit Code 128 payload.");
     }
 }
 
@@ -69,8 +79,6 @@ internal sealed class BarcodeValidationResult
     public bool CanSend { get; }
 
     public string Message { get; }
-
-    public bool IsShortScan => CanSend && Barcode.Length < BarcodeValidator.SuccessfulBarcodeLength;
 
     public static BarcodeValidationResult Accepted(string barcode, string message)
     {

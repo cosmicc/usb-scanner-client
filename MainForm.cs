@@ -20,7 +20,6 @@ public partial class MainForm : Form
     private bool suppressInputTimer;
     private int totalScansTaken;
     private int totalScansSent;
-    private int shortScansSent;
     private int failedSends;
     private int rejectedScans;
 
@@ -283,7 +282,7 @@ public partial class MainForm : Form
                 return;
             }
 
-            var bufferedScan = new BufferedScan(scan, row, validation.IsShortScan);
+            var bufferedScan = new BufferedScan(scan, row);
             if (!scannerConnection.IsConnected)
             {
                 QueueBufferedScan(bufferedScan, "Queued until server connects");
@@ -351,15 +350,9 @@ public partial class MainForm : Form
                 CancellationToken.None);
 
             totalScansSent++;
-            if (bufferedScan.IsShortScan)
-            {
-                shortScansSent++;
-            }
 
             bufferedScan.Scan.Status = ScanSendStatus.Sent;
-            bufferedScan.Scan.Message = bufferedScan.IsShortScan
-                ? $"Short scan sent for failed-scan logging to {settings.ServerHost}:{settings.ServerPort}"
-                : $"Sent to {settings.ServerHost}:{settings.ServerPort}";
+            bufferedScan.Scan.Message = $"Sent to {settings.ServerHost}:{settings.ServerPort}";
             UpdateScanRow(bufferedScan.Row, bufferedScan.Scan);
             return true;
         }
@@ -406,7 +399,13 @@ public partial class MainForm : Form
     {
         foreach (QueuedScanFileRecord queuedScan in QueuedScanStore.Load())
         {
-            var scan = new ScanRecord(queuedScan.Barcode, queuedScan.CapturedAt)
+            BarcodeValidationResult validation = BarcodeValidator.Validate(queuedScan.Barcode);
+            if (!validation.CanSend)
+            {
+                continue;
+            }
+
+            var scan = new ScanRecord(validation.Barcode, queuedScan.CapturedAt)
             {
                 Status = ScanSendStatus.Queued,
                 Message = string.IsNullOrWhiteSpace(queuedScan.Message)
@@ -415,7 +414,7 @@ public partial class MainForm : Form
             };
 
             DataGridViewRow row = AddScanRow(scan);
-            bufferedScans.Add(new BufferedScan(scan, row, queuedScan.IsShortScan));
+            bufferedScans.Add(new BufferedScan(scan, row));
             lastBarcodeValueLabel.Text = scan.Barcode;
         }
 
@@ -428,7 +427,7 @@ public partial class MainForm : Form
         {
             CapturedAt = bufferedScan.Scan.CapturedAt,
             Barcode = bufferedScan.Scan.Barcode,
-            IsShortScan = bufferedScan.IsShortScan,
+            IsShortScan = false,
             Message = bufferedScan.Scan.Message
         }));
     }
@@ -457,13 +456,38 @@ public partial class MainForm : Form
             scan.Status,
             scan.Message);
 
-        return scanLogGrid.Rows[0];
+        DataGridViewRow row = scanLogGrid.Rows[0];
+        ApplyScanRowStyle(row, scan.Status);
+        return row;
     }
 
     private void UpdateScanRow(DataGridViewRow row, ScanRecord scan, string? status = null)
     {
         row.Cells[StatusColumn.Index].Value = status ?? scan.Status.ToString();
         row.Cells[MessageColumn.Index].Value = scan.Message;
+        ApplyScanRowStyle(row, scan.Status);
+    }
+
+    private static void ApplyScanRowStyle(DataGridViewRow row, ScanSendStatus status)
+    {
+        bool waiting = status is ScanSendStatus.Pending or ScanSendStatus.Queued;
+        bool successful = status == ScanSendStatus.Sent;
+
+        row.DefaultCellStyle.BackColor = status switch
+        {
+            ScanSendStatus.Sent => Color.FromArgb(222, 252, 226),
+            ScanSendStatus.Pending or ScanSendStatus.Queued => Color.FromArgb(255, 246, 191),
+            _ => Color.FromArgb(255, 226, 226)
+        };
+
+        row.DefaultCellStyle.SelectionBackColor = status switch
+        {
+            ScanSendStatus.Sent => Color.FromArgb(77, 190, 98),
+            ScanSendStatus.Pending or ScanSendStatus.Queued => Color.FromArgb(226, 181, 72),
+            _ => Color.FromArgb(216, 86, 86)
+        };
+
+        row.DefaultCellStyle.SelectionForeColor = waiting || successful ? Color.Black : Color.White;
     }
 
     private void SetBusyState(bool isBusy)
@@ -494,8 +518,8 @@ public partial class MainForm : Form
     {
         statusLabel.Text =
             $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
-            + $"Queued: {bufferedScans.Count}   Short sent: {shortScansSent}   "
-            + $"Send failures: {failedSends}   Rejected: {rejectedScans}";
+            + $"Queued: {bufferedScans.Count}   Send failures: {failedSends}   "
+            + $"Rejected: {rejectedScans}";
         UpdateClearQueueButtonState();
     }
 
@@ -654,5 +678,5 @@ public partial class MainForm : Form
         return AppUpdateService.GetCurrentVersionText();
     }
 
-    private sealed record BufferedScan(ScanRecord Scan, DataGridViewRow Row, bool IsShortScan);
+    private sealed record BufferedScan(ScanRecord Scan, DataGridViewRow Row);
 }

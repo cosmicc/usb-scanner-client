@@ -242,12 +242,15 @@ internal sealed class AppUpdateService
     public static string GetDownloadDestinationPath(AppUpdateInfo update)
     {
         string versionDirectory = SanitizePathSegment(update.VersionText);
+        string uniqueExeName =
+            $"{Path.GetFileNameWithoutExtension(ExpectedAssetName)}-{Guid.NewGuid():N}.exe";
+
         return Path.Combine(
             Path.GetTempPath(),
             "UsbScannerClient",
             "Updates",
             versionDirectory,
-            ExpectedAssetName);
+            uniqueExeName);
     }
 
     public static void ApplyDownloadedUpdateAndRestart(string downloadedExePath)
@@ -424,23 +427,44 @@ internal sealed class AppUpdateService
         string targetPath,
         int processId)
     {
+        string targetDirectory = Path.GetDirectoryName(targetPath) ?? AppContext.BaseDirectory;
+
         return $"""
             @echo off
-            setlocal
+            setlocal EnableExtensions
             set "source={sourcePath}"
             set "target={targetPath}"
+            set "target_dir={targetDirectory}"
             set "pid={processId}"
+            set "wait_attempt=0"
 
             :wait_for_app
             tasklist /FI "PID eq %pid%" 2>NUL | findstr /R /C:"%pid%" >NUL
-            if not errorlevel 1 (
-                timeout /T 1 /NOBREAK >NUL
-                goto wait_for_app
-            )
+            if errorlevel 1 goto app_exited
+            set /A wait_attempt+=1
+            if %wait_attempt% GEQ 15 taskkill /PID %pid% /F >NUL 2>NUL
+            timeout /T 1 /NOBREAK >NUL
+            goto wait_for_app
 
-            copy /Y "%source%" "%target%" >NUL
-            start "" "%target%"
-            del "%~f0"
+            :app_exited
+            set "copy_attempt=0"
+
+            :copy_update
+            copy /Y "%source%" "%target%" >NUL 2>NUL
+            if not errorlevel 1 goto copy_complete
+            set /A copy_attempt+=1
+            if %copy_attempt% GEQ 30 goto copy_failed
+            timeout /T 1 /NOBREAK >NUL
+            goto copy_update
+
+            :copy_failed
+            start "" /D "%target_dir%" "%target%"
+            exit /B 1
+
+            :copy_complete
+            start "" /D "%target_dir%" "%target%"
+            del "%source%" >NUL 2>NUL
+            del "%~f0" >NUL 2>NUL
             """;
     }
 }

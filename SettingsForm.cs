@@ -30,7 +30,8 @@ internal sealed class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(540, 304);
+        Font = new Font("Segoe UI", 10F);
+        ClientSize = new Size(570, 340);
 
         var rootLayout = new TableLayoutPanel
         {
@@ -40,14 +41,14 @@ internal sealed class SettingsForm : Form
             RowCount = 7
         };
 
-        rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F));
+        rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 135F));
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         serverPortNumericUpDown.Minimum = 1;
@@ -87,6 +88,7 @@ internal sealed class SettingsForm : Form
         {
             DialogResult = DialogResult.OK,
             Text = "OK",
+            Height = 32,
             Width = 82
         };
         okButton.Click += OkButton_Click;
@@ -95,6 +97,7 @@ internal sealed class SettingsForm : Form
         {
             DialogResult = DialogResult.Cancel,
             Text = "Cancel",
+            Height = 32,
             Width = 82
         };
 
@@ -138,12 +141,13 @@ internal sealed class SettingsForm : Form
         };
 
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116F));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         checkForUpdatesButton.Text = "Check now";
         checkForUpdatesButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         checkForUpdatesButton.Enabled = checkForUpdatesAsync is not null;
+        checkForUpdatesButton.Height = 32;
         checkForUpdatesButton.Click += CheckForUpdatesButton_Click;
 
         panel.Controls.Add(autoUpdateCheckBox, 0, 0);
