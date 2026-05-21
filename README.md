@@ -8,7 +8,7 @@ window, and sends the barcode to the industrial scanner logger TCP receiver.
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.0`.
+- Current version: `v1.0.1`.
 - The release executable is framework-dependent. Windows PCs must have the
   .NET 10 Desktop Runtime installed before running it.
 - Default receiver target: `127.0.0.1:55256`.
@@ -103,7 +103,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.0` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.1` runs `.github/workflows/release.yml`.
 The workflow builds the framework-dependent Windows executable, creates the
 GitHub release, and uploads the executable as:
 
