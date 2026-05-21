@@ -23,6 +23,8 @@ window, and sends the barcode to the industrial scanner logger TCP receiver.
   last barcode scanned.
 - Receiver host, port, timeout, scan idle timeout, and auto-connect are managed
   in the separate Settings window.
+- Auto-update is enabled by default. The app checks GitHub Releases at startup
+  and Settings includes a `Check now` button for manual update checks.
 - The on-screen log records captured time, barcode, send status, and errors.
 - The lower status bar shows session totals: total scans, sent scans, queued
   scans, short scans sent for failed-scan logging, send failures, and rejected
@@ -75,6 +77,17 @@ https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
 On that page, use the Windows x64 installer under **.NET Desktop Runtime**.
 Then run `UsbScannerClient.exe`.
+
+## Auto Updates
+
+When auto-update is enabled, the app checks the latest non-prerelease GitHub
+release on startup and looks for the `UsbScannerClient.exe` release asset. If a
+newer version is available, it prompts before downloading or applying anything.
+
+If the update is accepted, the app downloads the new executable to a temporary
+folder, shows download progress, closes, replaces the existing executable, and
+restarts. GitHub releases and the `UsbScannerClient.exe` asset must be reachable
+from the Windows PC without a GitHub login.
 
 Local publish command:
 

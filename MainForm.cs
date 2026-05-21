@@ -1,4 +1,3 @@
-using System.Reflection;
 using UsbScannerClient.Models;
 using UsbScannerClient.Services;
 
@@ -9,9 +8,11 @@ public partial class MainForm : Form
     private const string AppTitle = "USB Scanner Client";
 
     private readonly TcpScannerConnection scannerConnection = new();
+    private readonly AppUpdateService updateService = new();
     private readonly List<BufferedScan> bufferedScans = [];
     private readonly System.Windows.Forms.Timer scanIdleTimer = new();
     private AppSettings settings = AppSettingsStore.Load();
+    private bool isCheckingForUpdates;
     private bool isFlushing;
     private bool isSubmitting;
     private bool suppressInputTimer;
@@ -39,6 +40,11 @@ public partial class MainForm : Form
         if (settings.AutoConnect)
         {
             await ConnectToServerAsync();
+        }
+
+        if (settings.AutoUpdate)
+        {
+            await CheckForUpdatesAsync(this, false);
         }
     }
 
@@ -73,7 +79,7 @@ public partial class MainForm : Form
     {
         AppSettings oldSettings = settings.Copy();
 
-        using var settingsForm = new SettingsForm(settings);
+        using var settingsForm = new SettingsForm(settings, CheckForUpdatesFromSettingsAsync);
         if (settingsForm.ShowDialog(this) != DialogResult.OK)
         {
             scanInputTextBox.Focus();
@@ -97,6 +103,11 @@ public partial class MainForm : Form
 
         UpdateStatsStatusLine();
         scanInputTextBox.Focus();
+    }
+
+    private Task CheckForUpdatesFromSettingsAsync(IWin32Window owner)
+    {
+        return CheckForUpdatesAsync(owner, true);
     }
 
     private async void ScanInputTextBox_KeyDown(object? sender, KeyEventArgs e)
@@ -388,6 +399,128 @@ public partial class MainForm : Form
             + $"Send failures: {failedSends}   Rejected: {rejectedScans}";
     }
 
+    private async Task CheckForUpdatesAsync(IWin32Window owner, bool showNoUpdateMessage)
+    {
+        if (isCheckingForUpdates)
+        {
+            if (showNoUpdateMessage)
+            {
+                MessageBox.Show(
+                    owner,
+                    "An update check is already running.",
+                    "Update Check",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            return;
+        }
+
+        isCheckingForUpdates = true;
+        bool showedUpdatePrompt = false;
+        try
+        {
+            AppUpdateInfo? update = await updateService.CheckForUpdateAsync(
+                AppUpdateService.GetCurrentVersion(),
+                CancellationToken.None);
+
+            if (update is null)
+            {
+                if (showNoUpdateMessage)
+                {
+                    MessageBox.Show(
+                        owner,
+                        $"USB Scanner Client v{AppUpdateService.GetCurrentVersionText()} is up to date.",
+                        "No Update Available",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+
+                return;
+            }
+
+            showedUpdatePrompt = true;
+            DialogResult result = MessageBox.Show(
+                owner,
+                $"New version available: v{update.VersionText}\n"
+                    + $"Current version: v{AppUpdateService.GetCurrentVersionText()}\n\n"
+                    + "Apply this update now?",
+                "New Version Available",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+            if (result != DialogResult.Yes)
+            {
+                return;
+            }
+
+            await DownloadAndApplyUpdateAsync(update, owner);
+        }
+        catch (Exception ex)
+        {
+            if (showNoUpdateMessage || showedUpdatePrompt)
+            {
+                MessageBox.Show(
+                    owner,
+                    $"Unable to check for updates.\n\n{ex.Message}",
+                    "Update Check Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+        finally
+        {
+            isCheckingForUpdates = false;
+            if (!IsDisposed)
+            {
+                scanInputTextBox.Focus();
+            }
+        }
+    }
+
+    private async Task DownloadAndApplyUpdateAsync(AppUpdateInfo update, IWin32Window owner)
+    {
+        string destinationPath = AppUpdateService.GetDownloadDestinationPath(update);
+
+        using var progressForm = new UpdateProgressForm();
+        progressForm.SetStatus($"Downloading {update.AssetName}...");
+
+        IProgress<UpdateDownloadProgress> progress =
+            new Progress<UpdateDownloadProgress>(progressForm.ReportProgress);
+
+        progressForm.Show(owner);
+        try
+        {
+            await updateService.DownloadUpdateAsync(
+                update,
+                destinationPath,
+                progress,
+                CancellationToken.None);
+
+            progressForm.SetStatus("Download complete.");
+            progressForm.Close();
+
+            MessageBox.Show(
+                owner,
+                "The update was downloaded. The app will close, replace the executable, and restart.",
+                "Apply Update",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            AppUpdateService.ApplyDownloadedUpdateAndRestart(destinationPath);
+            Application.Exit();
+        }
+        catch
+        {
+            if (!progressForm.IsDisposed)
+            {
+                progressForm.Close();
+            }
+
+            throw;
+        }
+    }
+
     private void ConfigureScanIdleTimer()
     {
         scanIdleTimer.Stop();
@@ -411,10 +544,7 @@ public partial class MainForm : Form
 
     private static string GetVersion()
     {
-        return typeof(MainForm).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion
-            ?? "0.1.0";
+        return AppUpdateService.GetCurrentVersionText();
     }
 
     private sealed record BufferedScan(ScanRecord Scan, DataGridViewRow Row, bool IsShortScan);

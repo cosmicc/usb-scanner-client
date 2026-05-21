@@ -2,14 +2,20 @@ namespace UsbScannerClient;
 
 internal sealed class SettingsForm : Form
 {
+    private readonly Func<IWin32Window, Task>? checkForUpdatesAsync;
     private readonly TextBox serverHostTextBox = new();
     private readonly NumericUpDown serverPortNumericUpDown = new();
     private readonly NumericUpDown timeoutNumericUpDown = new();
     private readonly NumericUpDown scanIdleTimeoutNumericUpDown = new();
     private readonly CheckBox autoConnectCheckBox = new();
+    private readonly CheckBox autoUpdateCheckBox = new();
+    private readonly Button checkForUpdatesButton = new();
 
-    public SettingsForm(AppSettings settings)
+    public SettingsForm(
+        AppSettings settings,
+        Func<IWin32Window, Task>? checkForUpdatesAsync = null)
     {
+        this.checkForUpdatesAsync = checkForUpdatesAsync;
         Settings = settings.Copy();
         InitializeComponent();
         LoadSettingsIntoForm();
@@ -24,14 +30,14 @@ internal sealed class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(430, 258);
+        ClientSize = new Size(540, 304);
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(14),
             ColumnCount = 2,
-            RowCount = 6
+            RowCount = 7
         };
 
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F));
@@ -41,6 +47,7 @@ internal sealed class SettingsForm : Form
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         serverPortNumericUpDown.Minimum = 1;
@@ -59,10 +66,15 @@ internal sealed class SettingsForm : Form
         AddLabeledControl(rootLayout, "Timeout ms", timeoutNumericUpDown, 2);
         AddLabeledControl(rootLayout, "Scan idle ms", scanIdleTimeoutNumericUpDown, 3);
         AddLabeledControl(rootLayout, "Startup", autoConnectCheckBox, 4);
+        AddLabeledControl(rootLayout, "Updates", CreateUpdatesPanel(), 5);
 
         autoConnectCheckBox.Text = "Connect automatically";
         autoConnectCheckBox.Anchor = AnchorStyles.Left;
         autoConnectCheckBox.AutoSize = true;
+
+        autoUpdateCheckBox.Text = "Check for updates automatically";
+        autoUpdateCheckBox.Anchor = AnchorStyles.Left;
+        autoUpdateCheckBox.AutoSize = true;
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -89,7 +101,7 @@ internal sealed class SettingsForm : Form
         buttonPanel.Controls.Add(okButton);
         buttonPanel.Controls.Add(cancelButton);
 
-        rootLayout.Controls.Add(buttonPanel, 1, 5);
+        rootLayout.Controls.Add(buttonPanel, 1, 6);
 
         AcceptButton = okButton;
         CancelButton = cancelButton;
@@ -115,6 +127,31 @@ internal sealed class SettingsForm : Form
         layout.Controls.Add(control, 1, row);
     }
 
+    private Control CreateUpdatesPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            ColumnCount = 2,
+            RowCount = 1,
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty
+        };
+
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116F));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        checkForUpdatesButton.Text = "Check now";
+        checkForUpdatesButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        checkForUpdatesButton.Enabled = checkForUpdatesAsync is not null;
+        checkForUpdatesButton.Click += CheckForUpdatesButton_Click;
+
+        panel.Controls.Add(autoUpdateCheckBox, 0, 0);
+        panel.Controls.Add(checkForUpdatesButton, 1, 0);
+
+        return panel;
+    }
+
     private void LoadSettingsIntoForm()
     {
         serverHostTextBox.Text = Settings.ServerHost;
@@ -122,6 +159,7 @@ internal sealed class SettingsForm : Form
         timeoutNumericUpDown.Value = Settings.SendTimeoutMilliseconds;
         scanIdleTimeoutNumericUpDown.Value = Settings.ScanIdleTimeoutMilliseconds;
         autoConnectCheckBox.Checked = Settings.AutoConnect;
+        autoUpdateCheckBox.Checked = Settings.AutoUpdate;
     }
 
     private void OkButton_Click(object? sender, EventArgs e)
@@ -146,7 +184,29 @@ internal sealed class SettingsForm : Form
             ServerPort = decimal.ToInt32(serverPortNumericUpDown.Value),
             SendTimeoutMilliseconds = decimal.ToInt32(timeoutNumericUpDown.Value),
             ScanIdleTimeoutMilliseconds = decimal.ToInt32(scanIdleTimeoutNumericUpDown.Value),
-            AutoConnect = autoConnectCheckBox.Checked
+            AutoConnect = autoConnectCheckBox.Checked,
+            AutoUpdate = autoUpdateCheckBox.Checked
         };
+    }
+
+    private async void CheckForUpdatesButton_Click(object? sender, EventArgs e)
+    {
+        if (checkForUpdatesAsync is null)
+        {
+            return;
+        }
+
+        checkForUpdatesButton.Enabled = false;
+        try
+        {
+            await checkForUpdatesAsync(this);
+        }
+        finally
+        {
+            if (!IsDisposed)
+            {
+                checkForUpdatesButton.Enabled = true;
+            }
+        }
     }
 }

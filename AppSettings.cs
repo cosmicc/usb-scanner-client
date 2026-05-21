@@ -12,6 +12,8 @@ internal sealed class AppSettings
 
     public bool AutoConnect { get; set; }
 
+    public bool AutoUpdate { get; set; } = true;
+
     public AppSettings Copy()
     {
         return new AppSettings
@@ -20,7 +22,8 @@ internal sealed class AppSettings
             ServerPort = ServerPort,
             SendTimeoutMilliseconds = SendTimeoutMilliseconds,
             ScanIdleTimeoutMilliseconds = ScanIdleTimeoutMilliseconds,
-            AutoConnect = AutoConnect
+            AutoConnect = AutoConnect,
+            AutoUpdate = AutoUpdate
         };
     }
 
