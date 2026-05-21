@@ -5,6 +5,20 @@ Most USB scanners act like a keyboard: they type the scanned value and press
 Enter. This app keeps focus on the scan box, records each scan locally in the
 window, and sends the barcode to the industrial scanner logger TCP receiver.
 
+## Required Server Component
+
+This application is not a standalone scanner logging system. It is a Windows USB scanner client for the Industrial Scanner Logger project.
+
+The USB Scanner Client requires the server-side Industrial Scanner Logger receiver to be installed and running:
+
+https://github.com/cosmicc/industrial-scanner-logger
+
+The client captures scans from a USB keyboard-wedge barcode scanner, then sends those scan events over TCP to the Industrial Scanner Logger receiver. The server handles the actual scan classification, CSV logging, PostgreSQL logging, API/web interface support, duplicate handling, and failed-scan recording.
+
+By default, the client sends scans to TCP port `55256`, which matches the default receiver port used by `industrial-scanner-logger`.
+
+Without the Industrial Scanner Logger server running and reachable, this client can still capture scans locally in the window and queue valid scans, but it cannot complete the intended logging workflow.
+
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
