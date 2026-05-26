@@ -180,30 +180,32 @@ internal sealed class AppUpdateService
 
         response.EnsureSuccessStatusCode();
 
-        long? totalBytes = response.Content.Headers.ContentLength;
-        await using Stream remoteStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using FileStream localStream = new(
-            partialPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None);
-
-        byte[] buffer = new byte[81920];
-        long totalRead = 0;
-        while (true)
         {
-            int read = await remoteStream.ReadAsync(buffer, cancellationToken);
-            if (read == 0)
+            long? totalBytes = response.Content.Headers.ContentLength;
+            await using Stream remoteStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using FileStream localStream = new(
+                partialPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None);
+
+            byte[] buffer = new byte[81920];
+            long totalRead = 0;
+            while (true)
             {
-                break;
+                int read = await remoteStream.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                await localStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                totalRead += read;
+                progress.Report(new UpdateDownloadProgress(totalRead, totalBytes));
             }
 
-            await localStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            totalRead += read;
-            progress.Report(new UpdateDownloadProgress(totalRead, totalBytes));
+            await localStream.FlushAsync(cancellationToken);
         }
-
-        await localStream.FlushAsync(cancellationToken);
 
         if (File.Exists(destinationPath))
         {
@@ -281,10 +283,9 @@ internal sealed class AppUpdateService
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/C \"{scriptPath}\"",
-            CreateNoWindow = true,
-            UseShellExecute = false,
+            FileName = scriptPath,
+            WorkingDirectory = Path.GetDirectoryName(scriptPath),
+            UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Hidden
         });
     }
@@ -435,6 +436,7 @@ internal sealed class AppUpdateService
             set "source={sourcePath}"
             set "target={targetPath}"
             set "target_dir={targetDirectory}"
+            set "target_new={targetPath}.new"
             set "pid={processId}"
             set "wait_attempt=0"
 
@@ -442,7 +444,7 @@ internal sealed class AppUpdateService
             tasklist /FI "PID eq %pid%" 2>NUL | findstr /R /C:"%pid%" >NUL
             if errorlevel 1 goto app_exited
             set /A wait_attempt+=1
-            if %wait_attempt% GEQ 15 taskkill /PID %pid% /F >NUL 2>NUL
+            if %wait_attempt% GEQ 60 taskkill /PID %pid% /F >NUL 2>NUL
             timeout /T 1 /NOBREAK >NUL
             goto wait_for_app
 
@@ -450,15 +452,25 @@ internal sealed class AppUpdateService
             set "copy_attempt=0"
 
             :copy_update
-            copy /Y "%source%" "%target%" >NUL 2>NUL
+            if exist "%target_new%" del /F /Q "%target_new%" >NUL 2>NUL
+            copy /Y "%source%" "%target_new%" >NUL 2>NUL
+            if errorlevel 1 goto retry_copy
+            del /F /Q "%target%" >NUL 2>NUL
+            move /Y "%target_new%" "%target%" >NUL 2>NUL
             if not errorlevel 1 goto copy_complete
+
+            :retry_copy
             set /A copy_attempt+=1
             if %copy_attempt% GEQ 30 goto copy_failed
             timeout /T 1 /NOBREAK >NUL
             goto copy_update
 
             :copy_failed
-            start "" /D "%target_dir%" "%target%"
+            if exist "%target%" (
+                start "" /D "%target_dir%" "%target%"
+            ) else (
+                start "" /D "%target_dir%" "%source%"
+            )
             exit /B 1
 
             :copy_complete

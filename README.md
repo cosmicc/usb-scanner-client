@@ -22,7 +22,7 @@ Without the Industrial Scanner Logger server running and reachable, this client 
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.4`.
+- Current version: `v1.0.5`.
 - The release executable is a self-contained Windows x64 single EXE. The .NET
   runtime is built into `UsbScannerClient.exe`, so users do not need to install
   the .NET Desktop Runtime separately.
@@ -125,7 +125,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.4` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.5` runs `.github/workflows/release.yml`.
 The workflow builds the self-contained Windows x64 single executable, creates
 the GitHub release, and uploads the only app asset as:
 
@@ -135,6 +135,8 @@ UsbScannerClient.exe
 
 GitHub automatically includes the source code `.zip` and `.tar.gz` archives on
 the same release page.
+
+Release history is tracked in `CHANGELOG.md`.
 
 For first manual testing, set the server field to the IP address or DNS name of
 the machine running `industrial-scanner-logger`, leave the port at `55256`
