@@ -22,9 +22,10 @@ Without the Industrial Scanner Logger server running and reachable, this client 
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.3`.
-- The release executable is framework-dependent. Windows PCs must have the
-  .NET 10 Desktop Runtime installed before running it.
+- Current version: `v1.0.4`.
+- The release executable is a self-contained Windows x64 single EXE. The .NET
+  runtime is built into `UsbScannerClient.exe`, so users do not need to install
+  the .NET Desktop Runtime separately.
 - Default receiver target: `127.0.0.1:55256`.
 - Scans are sent as one UTF-8 barcode followed by `CRLF`, matching the scanner
   TCP frame shape the logger already accepts.
@@ -91,14 +92,10 @@ dotnet build .\UsbScannerClient.sln
 
 ## Windows Executable
 
-The release workflow and local publish command intentionally build the version
-without .NET baked in. Install the **.NET 10 Desktop Runtime** on the Windows
-PC first:
-
-https://dotnet.microsoft.com/en-us/download/dotnet/10.0
-
-On that page, use the Windows x64 installer under **.NET Desktop Runtime**.
-Then run `UsbScannerClient.exe`.
+The release workflow and local publish command build a self-contained Windows
+x64 single executable. End users only need `UsbScannerClient.exe`; the required
+.NET runtime is built into that file. There is no installer and no separate
+.NET Desktop Runtime download for normal use.
 
 ## Auto Updates
 
@@ -117,7 +114,7 @@ read access to the repository, or make the repository public.
 Local publish command:
 
 ```powershell
-dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:DebugType=none -p:DebugSymbols=false
+dotnet publish .\UsbScannerClient.csproj -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
 ```
 
 The executable will be under:
@@ -128,9 +125,9 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.3` runs `.github/workflows/release.yml`.
-The workflow builds the framework-dependent Windows executable, creates the
-GitHub release, and uploads the executable as:
+Pushing a version tag such as `v1.0.4` runs `.github/workflows/release.yml`.
+The workflow builds the self-contained Windows x64 single executable, creates
+the GitHub release, and uploads the only app asset as:
 
 ```text
 UsbScannerClient.exe
