@@ -140,8 +140,9 @@ public partial class MainForm : Form
             if (scannerConnection.IsConnected && !oldSettings.HasSameReceiver(settings))
             {
                 scannerConnection.Disconnect();
-                UpdateServerStatus();
             }
+
+            UpdateServerStatus();
 
             if (scannerConnection.IsConnected)
             {

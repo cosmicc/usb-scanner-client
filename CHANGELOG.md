@@ -4,7 +4,8 @@ All notable changes to USB Scanner Client should be recorded here.
 
 ## Unreleased
 
-No unreleased changes yet.
+- Fixed switching from CSV mode back to server mode so the main window restores
+  server connection controls immediately without restarting.
 
 ## v1.0.7 - 2026-06-11
 
