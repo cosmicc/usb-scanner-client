@@ -28,7 +28,7 @@ logging, enable direct CSV mode in Settings and choose the CSV file location.
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.6`.
+- Current version: `v1.0.7`.
 - The release executable is a self-contained Windows x64 single EXE. The .NET
   runtime is built into `UsbScannerClient.exe`, so users do not need to install
   the .NET Desktop Runtime separately.
@@ -142,7 +142,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.6` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.7` runs `.github/workflows/release.yml`.
 The workflow builds the self-contained Windows x64 single executable, creates
 the GitHub release, and uploads the only app asset as:
 

@@ -615,7 +615,7 @@ public partial class MainForm : Form
         {
             statusGroupBox.Text = "Output Status";
             serverStatusCaptionLabel.Text = "Output mode";
-            SetServerStatus("CSV mode", false);
+            SetServerStatus("CSV mode", true);
             connectButton.Text = "Disabled";
             connectButton.Enabled = false;
             sendButton.Text = "Save";

@@ -6,6 +6,12 @@ All notable changes to USB Scanner Client should be recorded here.
 
 No unreleased changes yet.
 
+## v1.0.7 - 2026-06-11
+
+- Added an embedded Windows executable icon based on the scanner artwork.
+- Changed CSV mode to show the status indicator as green because CSV output is
+  an active healthy output mode, not a disconnected server state.
+
 ## v1.0.6 - 2026-06-11
 
 - Added direct CSV mode with a configurable CSV file location in Settings.
