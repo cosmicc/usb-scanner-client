@@ -3,13 +3,16 @@
 Small Windows Forms client for a USB barcode scanner connected to a Windows PC.
 Most USB scanners act like a keyboard: they type the scanned value and press
 Enter. This app keeps focus on the scan box, records each scan locally in the
-window, and sends the barcode to the industrial scanner logger TCP receiver.
+window, and either sends the barcode to the industrial scanner logger TCP
+receiver or writes scans directly to a local CSV file.
 
 ## Required Server Component
 
-This application is not a standalone scanner logging system. It is a Windows USB scanner client for the Industrial Scanner Logger project.
+The server-backed workflow uses this app as a Windows USB scanner client for the
+Industrial Scanner Logger project.
 
-The USB Scanner Client requires the server-side Industrial Scanner Logger receiver to be installed and running:
+For server mode, the USB Scanner Client requires the server-side Industrial
+Scanner Logger receiver to be installed and running:
 
 https://github.com/cosmicc/industrial-scanner-logger
 
@@ -17,12 +20,15 @@ The client captures scans from a USB keyboard-wedge barcode scanner, then sends 
 
 By default, the client sends scans to TCP port `55256`, which matches the default receiver port used by `industrial-scanner-logger`.
 
-Without the Industrial Scanner Logger server running and reachable, this client can still capture scans locally in the window and queue valid scans, but it cannot complete the intended logging workflow.
+Without the Industrial Scanner Logger server running and reachable, server mode
+can still capture scans locally in the window and queue valid scans, but it
+cannot complete the intended server logging workflow. For standalone local
+logging, enable direct CSV mode in Settings and choose the CSV file location.
 
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.5`.
+- Current version: `v1.0.6`.
 - The release executable is a self-contained Windows x64 single EXE. The .NET
   runtime is built into `UsbScannerClient.exe`, so users do not need to install
   the .NET Desktop Runtime separately.
@@ -34,10 +40,12 @@ Without the Industrial Scanner Logger server running and reachable, this client 
 - The TCP connection is kept open so this client behaves like a network scanner.
 - If the server is disconnected, valid scans are held in a queue and saved to
   `%APPDATA%\UsbScannerClient\queued-scans.json` until they are sent.
+- Direct CSV mode writes every submitted scan to the configured CSV file and
+  disables server connection and queue controls.
 - The window shows receiver connection state with a red/green indicator and the
   last barcode scanned.
-- Receiver host, port, timeout, scan idle timeout, and auto-connect are managed
-  in the separate Settings window.
+- Output mode, CSV file location, receiver host, port, timeout, scan idle
+  timeout, and auto-connect are managed in the separate Settings window.
 - Auto-update is enabled by default. The app checks GitHub Releases at startup
   and Settings includes a `Check now` button for manual update checks.
 - The on-screen log records captured time, barcode, send status, and errors,
@@ -55,6 +63,12 @@ events on `CR`, `LF`, or `CRLF`, and defaults to port `55256`.
 Most USB scanners type the barcode and then send Enter. For scanners that do not
 send Enter/CR/LF, the client treats the barcode as complete after the configured
 scan idle timeout, which defaults to `250 ms`.
+
+When direct CSV mode is enabled, completed scans are appended to the configured
+CSV file immediately. The CSV file includes captured time, barcode, validation
+status, and validation message columns. In this mode the app does not connect to
+the server, queue scans, flush queued scans, or warn about unsent queued scans on
+close.
 
 If the receiver is disconnected, valid 34-digit scans are queued and written to
 `%APPDATA%\UsbScannerClient\queued-scans.json`. Press `Connect` to reconnect;
@@ -80,6 +94,9 @@ queued scans remain.
   should arrive with a `]C` prefix. The client strips that prefix before
   sending. Without that scanner-side prefix, a keyboard-wedge scanner only gives
   the decoded text, so the app cannot prove the original symbology.
+
+In direct CSV mode, validation still runs and its result is written to the CSV,
+but every submitted scan is saved locally instead of being sent or queued.
 
 ## Development
 
@@ -125,7 +142,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.5` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.6` runs `.github/workflows/release.yml`.
 The workflow builds the self-contained Windows x64 single executable, creates
 the GitHub release, and uploads the only app asset as:
 

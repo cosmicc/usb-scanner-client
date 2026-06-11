@@ -9,6 +9,9 @@ internal sealed class SettingsForm : Form
     private readonly NumericUpDown scanIdleTimeoutNumericUpDown = new();
     private readonly CheckBox autoConnectCheckBox = new();
     private readonly CheckBox autoUpdateCheckBox = new();
+    private readonly CheckBox csvModeCheckBox = new();
+    private readonly TextBox csvFilePathTextBox = new();
+    private readonly Button browseCsvFileButton = new();
     private readonly Button checkForUpdatesButton = new();
 
     public SettingsForm(
@@ -31,18 +34,20 @@ internal sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         Font = new Font("Segoe UI", 10F);
-        ClientSize = new Size(570, 340);
+        ClientSize = new Size(620, 430);
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(14),
             ColumnCount = 2,
-            RowCount = 7
+            RowCount = 9
         };
 
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 135F));
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
@@ -62,12 +67,19 @@ internal sealed class SettingsForm : Form
         scanIdleTimeoutNumericUpDown.Maximum = 2000;
         scanIdleTimeoutNumericUpDown.Increment = 50;
 
-        AddLabeledControl(rootLayout, "Server", serverHostTextBox, 0);
-        AddLabeledControl(rootLayout, "Port", serverPortNumericUpDown, 1);
-        AddLabeledControl(rootLayout, "Timeout ms", timeoutNumericUpDown, 2);
-        AddLabeledControl(rootLayout, "Scan idle ms", scanIdleTimeoutNumericUpDown, 3);
-        AddLabeledControl(rootLayout, "Startup", autoConnectCheckBox, 4);
-        AddLabeledControl(rootLayout, "Updates", CreateUpdatesPanel(), 5);
+        AddLabeledControl(rootLayout, "Output", csvModeCheckBox, 0);
+        AddLabeledControl(rootLayout, "CSV file", CreateCsvFilePanel(), 1);
+        AddLabeledControl(rootLayout, "Server", serverHostTextBox, 2);
+        AddLabeledControl(rootLayout, "Port", serverPortNumericUpDown, 3);
+        AddLabeledControl(rootLayout, "Timeout ms", timeoutNumericUpDown, 4);
+        AddLabeledControl(rootLayout, "Scan idle ms", scanIdleTimeoutNumericUpDown, 5);
+        AddLabeledControl(rootLayout, "Startup", autoConnectCheckBox, 6);
+        AddLabeledControl(rootLayout, "Updates", CreateUpdatesPanel(), 7);
+
+        csvModeCheckBox.Text = "Write scans directly to CSV";
+        csvModeCheckBox.Anchor = AnchorStyles.Left;
+        csvModeCheckBox.AutoSize = true;
+        csvModeCheckBox.CheckedChanged += CsvModeCheckBox_CheckedChanged;
 
         autoConnectCheckBox.Text = "Connect automatically";
         autoConnectCheckBox.Anchor = AnchorStyles.Left;
@@ -104,7 +116,7 @@ internal sealed class SettingsForm : Form
         buttonPanel.Controls.Add(okButton);
         buttonPanel.Controls.Add(cancelButton);
 
-        rootLayout.Controls.Add(buttonPanel, 1, 6);
+        rootLayout.Controls.Add(buttonPanel, 1, 8);
 
         AcceptButton = okButton;
         CancelButton = cancelButton;
@@ -156,6 +168,33 @@ internal sealed class SettingsForm : Form
         return panel;
     }
 
+    private Control CreateCsvFilePanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            ColumnCount = 2,
+            RowCount = 1,
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty
+        };
+
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        csvFilePathTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+
+        browseCsvFileButton.Text = "Browse...";
+        browseCsvFileButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        browseCsvFileButton.Height = 32;
+        browseCsvFileButton.Click += BrowseCsvFileButton_Click;
+
+        panel.Controls.Add(csvFilePathTextBox, 0, 0);
+        panel.Controls.Add(browseCsvFileButton, 1, 0);
+
+        return panel;
+    }
+
     private void LoadSettingsIntoForm()
     {
         serverHostTextBox.Text = Settings.ServerHost;
@@ -164,12 +203,24 @@ internal sealed class SettingsForm : Form
         scanIdleTimeoutNumericUpDown.Value = Settings.ScanIdleTimeoutMilliseconds;
         autoConnectCheckBox.Checked = Settings.AutoConnect;
         autoUpdateCheckBox.Checked = Settings.AutoUpdate;
+        csvModeCheckBox.Checked = Settings.CsvModeEnabled;
+        csvFilePathTextBox.Text = string.IsNullOrWhiteSpace(Settings.CsvFilePath)
+            ? AppSettings.GetDefaultCsvFilePath()
+            : Settings.CsvFilePath;
+        UpdateCsvModeControlState();
     }
 
     private void OkButton_Click(object? sender, EventArgs e)
     {
+        bool csvModeEnabled = csvModeCheckBox.Checked;
+        string csvFilePath = csvFilePathTextBox.Text.Trim();
+        if (csvModeEnabled && !TryValidateCsvFilePath(csvFilePath, out csvFilePath))
+        {
+            return;
+        }
+
         string serverHost = serverHostTextBox.Text.Trim();
-        if (serverHost.Length == 0)
+        if (!csvModeEnabled && serverHost.Length == 0)
         {
             MessageBox.Show(
                 this,
@@ -184,13 +235,107 @@ internal sealed class SettingsForm : Form
 
         Settings = new AppSettings
         {
-            ServerHost = serverHost,
+            ServerHost = serverHost.Length == 0 ? Settings.ServerHost : serverHost,
             ServerPort = decimal.ToInt32(serverPortNumericUpDown.Value),
             SendTimeoutMilliseconds = decimal.ToInt32(timeoutNumericUpDown.Value),
             ScanIdleTimeoutMilliseconds = decimal.ToInt32(scanIdleTimeoutNumericUpDown.Value),
-            AutoConnect = autoConnectCheckBox.Checked,
-            AutoUpdate = autoUpdateCheckBox.Checked
+            AutoConnect = !csvModeEnabled && autoConnectCheckBox.Checked,
+            AutoUpdate = autoUpdateCheckBox.Checked,
+            CsvModeEnabled = csvModeEnabled,
+            CsvFilePath = csvFilePath.Length == 0 ? AppSettings.GetDefaultCsvFilePath() : csvFilePath
         };
+    }
+
+    private bool TryValidateCsvFilePath(string csvFilePath, out string fullPath)
+    {
+        if (csvFilePath.Length == 0)
+        {
+            MessageBox.Show(
+                this,
+                "CSV file is required when direct CSV mode is enabled.",
+                "Invalid Settings",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            DialogResult = DialogResult.None;
+            csvFilePathTextBox.Focus();
+            fullPath = string.Empty;
+            return false;
+        }
+
+        try
+        {
+            fullPath = Path.GetFullPath(csvFilePath);
+            if (Path.GetFileName(fullPath).Length > 0)
+            {
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+        }
+
+        MessageBox.Show(
+            this,
+            "CSV file must be a valid file path.",
+            "Invalid Settings",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+        DialogResult = DialogResult.None;
+        csvFilePathTextBox.Focus();
+        fullPath = string.Empty;
+        return false;
+    }
+
+    private void CsvModeCheckBox_CheckedChanged(object? sender, EventArgs e)
+    {
+        UpdateCsvModeControlState();
+    }
+
+    private void UpdateCsvModeControlState()
+    {
+        bool useCsvMode = csvModeCheckBox.Checked;
+
+        csvFilePathTextBox.Enabled = useCsvMode;
+        browseCsvFileButton.Enabled = useCsvMode;
+        serverHostTextBox.Enabled = !useCsvMode;
+        serverPortNumericUpDown.Enabled = !useCsvMode;
+        timeoutNumericUpDown.Enabled = !useCsvMode;
+        autoConnectCheckBox.Enabled = !useCsvMode;
+
+        if (useCsvMode)
+        {
+            autoConnectCheckBox.Checked = false;
+        }
+    }
+
+    private void BrowseCsvFileButton_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Select CSV scan log",
+            Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+            DefaultExt = "csv",
+            AddExtension = true,
+            OverwritePrompt = false
+        };
+
+        string currentPath = csvFilePathTextBox.Text.Trim();
+        if (currentPath.Length == 0)
+        {
+            currentPath = AppSettings.GetDefaultCsvFilePath();
+        }
+
+        dialog.FileName = Path.GetFileName(currentPath);
+        string? directory = Path.GetDirectoryName(currentPath);
+        if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+        {
+            dialog.InitialDirectory = directory;
+        }
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            csvFilePathTextBox.Text = dialog.FileName;
+        }
     }
 
     private async void CheckForUpdatesButton_Click(object? sender, EventArgs e)

@@ -14,6 +14,10 @@ internal sealed class AppSettings
 
     public bool AutoUpdate { get; set; } = true;
 
+    public bool CsvModeEnabled { get; set; }
+
+    public string CsvFilePath { get; set; } = GetDefaultCsvFilePath();
+
     public AppSettings Copy()
     {
         return new AppSettings
@@ -23,7 +27,9 @@ internal sealed class AppSettings
             SendTimeoutMilliseconds = SendTimeoutMilliseconds,
             ScanIdleTimeoutMilliseconds = ScanIdleTimeoutMilliseconds,
             AutoConnect = AutoConnect,
-            AutoUpdate = AutoUpdate
+            AutoUpdate = AutoUpdate,
+            CsvModeEnabled = CsvModeEnabled,
+            CsvFilePath = CsvFilePath
         };
     }
 
@@ -31,5 +37,13 @@ internal sealed class AppSettings
     {
         return string.Equals(ServerHost, other.ServerHost, StringComparison.OrdinalIgnoreCase)
             && ServerPort == other.ServerPort;
+    }
+
+    public static string GetDefaultCsvFilePath()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "UsbScannerClient",
+            "scans.csv");
     }
 }

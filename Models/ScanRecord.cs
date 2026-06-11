@@ -5,6 +5,7 @@ internal enum ScanSendStatus
     Pending,
     Queued,
     Sent,
+    SavedToCsv,
     Failed,
     Rejected
 }

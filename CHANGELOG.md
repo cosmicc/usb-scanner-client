@@ -6,6 +6,13 @@ All notable changes to USB Scanner Client should be recorded here.
 
 No unreleased changes yet.
 
+## v1.0.6 - 2026-06-11
+
+- Added direct CSV mode with a configurable CSV file location in Settings.
+- Disabled server connection and queue controls while direct CSV mode is enabled.
+- Saved every submitted scan to CSV in direct CSV mode, including validation
+  status and validation message columns.
+
 ## v1.0.5 - 2026-05-26
 
 - Added this changelog so future releases have a single place to record user-facing changes.

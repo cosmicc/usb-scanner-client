@@ -20,6 +20,7 @@ public partial class MainForm : Form
     private bool suppressInputTimer;
     private int totalScansTaken;
     private int totalScansSent;
+    private int totalScansSavedToCsv;
     private int failedSends;
     private int rejectedScans;
 
@@ -28,7 +29,11 @@ public partial class MainForm : Form
         InitializeComponent();
         Text = $"{AppTitle} v{GetVersion()}";
         lastBarcodeValueLabel.Text = "None";
-        RestoreQueuedScans();
+        if (!settings.CsvModeEnabled)
+        {
+            RestoreQueuedScans();
+        }
+
         ConfigureScanIdleTimer();
         UpdateServerStatus();
         UpdateStatsStatusLine();
@@ -39,7 +44,7 @@ public partial class MainForm : Form
         base.OnShown(e);
         scanInputTextBox.Focus();
 
-        if (settings.AutoConnect)
+        if (!settings.CsvModeEnabled && settings.AutoConnect)
         {
             await ConnectToServerAsync();
         }
@@ -53,14 +58,21 @@ public partial class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         scanIdleTimer.Stop();
-        if (!isApplyingUpdate && bufferedScans.Count > 0 && !ConfirmCloseWithQueuedScans())
+        if (!settings.CsvModeEnabled
+            && !isApplyingUpdate
+            && bufferedScans.Count > 0
+            && !ConfirmCloseWithQueuedScans())
         {
             e.Cancel = true;
             scanInputTextBox.Focus();
             return;
         }
 
-        PersistBufferedScans();
+        if (!settings.CsvModeEnabled)
+        {
+            PersistBufferedScans();
+        }
+
         SaveSettings();
         scannerConnection.Disconnect();
         scannerConnection.Dispose();
@@ -74,6 +86,12 @@ public partial class MainForm : Form
 
     private async void ConnectButton_Click(object? sender, EventArgs e)
     {
+        if (settings.CsvModeEnabled)
+        {
+            scanInputTextBox.Focus();
+            return;
+        }
+
         if (scannerConnection.IsConnected)
         {
             scannerConnection.Disconnect();
@@ -96,19 +114,39 @@ public partial class MainForm : Form
             return;
         }
 
-        settings = settingsForm.Settings;
+        AppSettings newSettings = settingsForm.Settings;
+        if (!oldSettings.CsvModeEnabled && newSettings.CsvModeEnabled)
+        {
+            PersistBufferedScans();
+        }
+
+        settings = newSettings;
         ConfigureScanIdleTimer();
         SaveSettings();
 
-        if (scannerConnection.IsConnected && !oldSettings.HasSameReceiver(settings))
+        if (settings.CsvModeEnabled)
         {
             scannerConnection.Disconnect();
+            ClearBufferedScanRows();
             UpdateServerStatus();
         }
-
-        if (scannerConnection.IsConnected)
+        else
         {
-            await FlushBufferedScansAsync();
+            if (oldSettings.CsvModeEnabled)
+            {
+                RestoreQueuedScans();
+            }
+
+            if (scannerConnection.IsConnected && !oldSettings.HasSameReceiver(settings))
+            {
+                scannerConnection.Disconnect();
+                UpdateServerStatus();
+            }
+
+            if (scannerConnection.IsConnected)
+            {
+                await FlushBufferedScansAsync();
+            }
         }
 
         UpdateStatsStatusLine();
@@ -215,6 +253,12 @@ public partial class MainForm : Form
 
     private async Task ConnectToServerAsync()
     {
+        if (settings.CsvModeEnabled)
+        {
+            UpdateServerStatus();
+            return;
+        }
+
         SaveSettings();
         SetBusyState(true);
         SetServerStatus("Connecting", false);
@@ -265,18 +309,28 @@ public partial class MainForm : Form
             totalScansTaken++;
 
             BarcodeValidationResult validation = BarcodeValidator.Validate(rawBarcode);
-            var scan = new ScanRecord(validation.Barcode)
+            string loggedBarcode = settings.CsvModeEnabled ? rawBarcode : validation.Barcode;
+            var scan = new ScanRecord(loggedBarcode)
             {
                 Message = validation.Message
             };
-
-            DataGridViewRow row = AddScanRow(scan);
-            lastBarcodeValueLabel.Text = validation.Barcode;
-            ClearScanInput();
-
             if (!validation.CanSend)
             {
                 rejectedScans++;
+            }
+
+            DataGridViewRow row = AddScanRow(scan);
+            lastBarcodeValueLabel.Text = loggedBarcode;
+            ClearScanInput();
+
+            if (settings.CsvModeEnabled)
+            {
+                SaveScanToCsv(scan, row, validation);
+                return;
+            }
+
+            if (!validation.CanSend)
+            {
                 scan.Status = ScanSendStatus.Rejected;
                 UpdateScanRow(row, scan);
                 return;
@@ -309,7 +363,10 @@ public partial class MainForm : Form
 
     private async Task FlushBufferedScansAsync()
     {
-        if (isFlushing || !scannerConnection.IsConnected || bufferedScans.Count == 0)
+        if (settings.CsvModeEnabled
+            || isFlushing
+            || !scannerConnection.IsConnected
+            || bufferedScans.Count == 0)
         {
             return;
         }
@@ -376,6 +433,30 @@ public partial class MainForm : Form
         }
     }
 
+    private void SaveScanToCsv(
+        ScanRecord scan,
+        DataGridViewRow row,
+        BarcodeValidationResult validation)
+    {
+        try
+        {
+            CsvScanWriter.Append(scan, validation, settings.CsvFilePath);
+            totalScansSavedToCsv++;
+            scan.Status = ScanSendStatus.SavedToCsv;
+            scan.Message = validation.CanSend
+                ? $"Saved to CSV: {settings.CsvFilePath}"
+                : $"Saved rejected scan to CSV: {validation.Message}";
+            UpdateScanRow(row, scan);
+        }
+        catch (Exception ex)
+        {
+            failedSends++;
+            scan.Status = ScanSendStatus.Failed;
+            scan.Message = $"CSV save failed: {ex.Message}";
+            UpdateScanRow(row, scan);
+        }
+    }
+
     private void QueueBufferedScan(BufferedScan bufferedScan, string message)
     {
         if (!bufferedScans.Contains(bufferedScan))
@@ -423,6 +504,11 @@ public partial class MainForm : Form
 
     private void PersistBufferedScans()
     {
+        if (settings.CsvModeEnabled)
+        {
+            return;
+        }
+
         QueuedScanStore.Save(bufferedScans.Select(bufferedScan => new QueuedScanFileRecord
         {
             CapturedAt = bufferedScan.Scan.CapturedAt,
@@ -430,6 +516,19 @@ public partial class MainForm : Form
             IsShortScan = false,
             Message = bufferedScan.Scan.Message
         }));
+    }
+
+    private void ClearBufferedScanRows()
+    {
+        foreach (BufferedScan bufferedScan in bufferedScans.ToList())
+        {
+            if (bufferedScan.Row.DataGridView is not null)
+            {
+                scanLogGrid.Rows.Remove(bufferedScan.Row);
+            }
+        }
+
+        bufferedScans.Clear();
     }
 
     private bool ConfirmCloseWithQueuedScans()
@@ -463,26 +562,35 @@ public partial class MainForm : Form
 
     private void UpdateScanRow(DataGridViewRow row, ScanRecord scan, string? status = null)
     {
-        row.Cells[StatusColumn.Index].Value = status ?? scan.Status.ToString();
+        row.Cells[StatusColumn.Index].Value = status ?? GetScanStatusText(scan.Status);
         row.Cells[MessageColumn.Index].Value = scan.Message;
         ApplyScanRowStyle(row, scan.Status);
+    }
+
+    private static string GetScanStatusText(ScanSendStatus status)
+    {
+        return status switch
+        {
+            ScanSendStatus.SavedToCsv => "CSV Saved",
+            _ => status.ToString()
+        };
     }
 
     private static void ApplyScanRowStyle(DataGridViewRow row, ScanSendStatus status)
     {
         bool waiting = status is ScanSendStatus.Pending or ScanSendStatus.Queued;
-        bool successful = status == ScanSendStatus.Sent;
+        bool successful = status is ScanSendStatus.Sent or ScanSendStatus.SavedToCsv;
 
         row.DefaultCellStyle.BackColor = status switch
         {
-            ScanSendStatus.Sent => Color.FromArgb(222, 252, 226),
+            ScanSendStatus.Sent or ScanSendStatus.SavedToCsv => Color.FromArgb(222, 252, 226),
             ScanSendStatus.Pending or ScanSendStatus.Queued => Color.FromArgb(255, 246, 191),
             _ => Color.FromArgb(255, 226, 226)
         };
 
         row.DefaultCellStyle.SelectionBackColor = status switch
         {
-            ScanSendStatus.Sent => Color.FromArgb(77, 190, 98),
+            ScanSendStatus.Sent or ScanSendStatus.SavedToCsv => Color.FromArgb(77, 190, 98),
             ScanSendStatus.Pending or ScanSendStatus.Queued => Color.FromArgb(226, 181, 72),
             _ => Color.FromArgb(216, 86, 86)
         };
@@ -493,7 +601,7 @@ public partial class MainForm : Form
     private void SetBusyState(bool isBusy)
     {
         this.isBusy = isBusy;
-        connectButton.Enabled = !isBusy;
+        connectButton.Enabled = !isBusy && !settings.CsvModeEnabled;
         settingsButton.Enabled = !isBusy;
         sendButton.Enabled = !isBusy;
         scanInputTextBox.Enabled = !isBusy;
@@ -503,9 +611,26 @@ public partial class MainForm : Form
 
     private void UpdateServerStatus()
     {
+        if (settings.CsvModeEnabled)
+        {
+            statusGroupBox.Text = "Output Status";
+            serverStatusCaptionLabel.Text = "Output mode";
+            SetServerStatus("CSV mode", false);
+            connectButton.Text = "Disabled";
+            connectButton.Enabled = false;
+            sendButton.Text = "Save";
+            UpdateClearQueueButtonState();
+            return;
+        }
+
+        statusGroupBox.Text = "Connection Status";
+        serverStatusCaptionLabel.Text = "Server connection";
         bool isConnected = scannerConnection.IsConnected;
         SetServerStatus(isConnected ? "Connected" : "Disconnected", isConnected);
         connectButton.Text = isConnected ? "Disconnect" : "Connect";
+        connectButton.Enabled = !isBusy;
+        sendButton.Text = "Send";
+        UpdateClearQueueButtonState();
     }
 
     private void SetServerStatus(string status, bool isConnected)
@@ -516,16 +641,26 @@ public partial class MainForm : Form
 
     private void UpdateStatsStatusLine()
     {
-        statusLabel.Text =
-            $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
-            + $"Queued: {bufferedScans.Count}   Send failures: {failedSends}   "
-            + $"Rejected: {rejectedScans}";
+        if (settings.CsvModeEnabled)
+        {
+            statusLabel.Text =
+                $"Total scans: {totalScansTaken}   CSV saved: {totalScansSavedToCsv}   "
+                + $"CSV failures: {failedSends}   Rejected: {rejectedScans}";
+        }
+        else
+        {
+            statusLabel.Text =
+                $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
+                + $"Queued: {bufferedScans.Count}   Send failures: {failedSends}   "
+                + $"Rejected: {rejectedScans}";
+        }
+
         UpdateClearQueueButtonState();
     }
 
     private void UpdateClearQueueButtonState()
     {
-        clearQueueButton.Enabled = !isBusy && bufferedScans.Count > 0;
+        clearQueueButton.Enabled = !settings.CsvModeEnabled && !isBusy && bufferedScans.Count > 0;
     }
 
     private async Task CheckForUpdatesAsync(IWin32Window owner, bool showNoUpdateMessage)
