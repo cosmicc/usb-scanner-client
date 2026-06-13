@@ -5,6 +5,16 @@ namespace UsbScannerClient.Services;
 
 internal static class CsvScanWriter
 {
+    // Cell-leading characters that spreadsheet programs can treat as formulas.
+    private static readonly char[] SpreadsheetFormulaPrefixCharacters =
+    [
+        '=',
+        '+',
+        '-',
+        '@'
+    ];
+
+    // Column names written once when a new CSV scan log file is created.
     private static readonly string[] Header =
     [
         "CapturedAt",
@@ -54,11 +64,28 @@ internal static class CsvScanWriter
 
     private static string Escape(string value)
     {
-        if (value.IndexOfAny([',', '"', '\r', '\n']) < 0)
+        // Neutralize formula-like cells before applying normal CSV quoting.
+        string safeValue = NeutralizeSpreadsheetFormula(value);
+        if (safeValue.IndexOfAny([',', '"', '\r', '\n']) < 0)
+        {
+            return safeValue;
+        }
+
+        return $"\"{safeValue.Replace("\"", "\"\"")}\"";
+    }
+
+    private static string NeutralizeSpreadsheetFormula(string value)
+    {
+        if (value.Length == 0)
         {
             return value;
         }
 
-        return $"\"{value.Replace("\"", "\"\"")}\"";
+        if (!SpreadsheetFormulaPrefixCharacters.Contains(value[0]))
+        {
+            return value;
+        }
+
+        return $"'{value}";
     }
 }

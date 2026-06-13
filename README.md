@@ -28,7 +28,7 @@ logging, enable direct CSV mode in Settings and choose the CSV file location.
 ## Current Framework
 
 - C# WinForms project targeting `net10.0-windows`.
-- Current version: `v1.0.7`.
+- Current version: `v1.0.8`.
 - The release executable is a self-contained Windows x64 single EXE. The .NET
   runtime is built into `UsbScannerClient.exe`, so users do not need to install
   the .NET Desktop Runtime separately.
@@ -42,8 +42,8 @@ logging, enable direct CSV mode in Settings and choose the CSV file location.
   `%APPDATA%\UsbScannerClient\queued-scans.json` until they are sent.
 - Direct CSV mode writes every submitted scan to the configured CSV file and
   disables server connection and queue controls.
-- The window shows receiver connection state with a red/green indicator and the
-  last barcode scanned.
+- The window shows receiver connection state with a red/green indicator and a
+  large current-session scan count.
 - Output mode, CSV file location, receiver host, port, timeout, scan idle
   timeout, and auto-connect are managed in the separate Settings window.
 - Auto-update is enabled by default. The app checks GitHub Releases at startup
@@ -68,7 +68,8 @@ When direct CSV mode is enabled, completed scans are appended to the configured
 CSV file immediately. The CSV file includes captured time, barcode, validation
 status, and validation message columns. In this mode the app does not connect to
 the server, queue scans, flush queued scans, or warn about unsent queued scans on
-close.
+close. The main window keeps the latest 500 CSV-mode scans visible for review,
+while the CSV file remains the complete record for high-volume sessions.
 
 If the receiver is disconnected, valid 34-digit scans are queued and written to
 `%APPDATA%\UsbScannerClient\queued-scans.json`. Press `Connect` to reconnect;
@@ -142,7 +143,7 @@ bin\Release\net10.0-windows\win-x64\publish\UsbScannerClient.exe
 
 ## GitHub Releases
 
-Pushing a version tag such as `v1.0.7` runs `.github/workflows/release.yml`.
+Pushing a version tag such as `v1.0.8` runs `.github/workflows/release.yml`.
 The workflow builds the self-contained Windows x64 single executable, creates
 the GitHub release, and uploads the only app asset as:
 

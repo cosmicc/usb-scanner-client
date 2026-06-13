@@ -5,30 +5,72 @@ namespace UsbScannerClient;
 
 public partial class MainForm : Form
 {
+    // Human-readable application title used in the main window caption.
     private const string AppTitle = "USB Scanner Client";
 
+    // Maximum number of recent CSV-mode scans retained in the on-screen grid.
+    // The configured CSV file remains the complete durable scan record.
+    private const int MaximumDisplayedCsvScanRows = 500;
+
+    // Maximum status-strip error text length before trimming long exception text.
+    private const int MaximumStatusErrorLength = 180;
+
+    // TCP connection used only when the app is in server mode.
     private readonly TcpScannerConnection scannerConnection = new();
+
+    // Update service used for manual and automatic GitHub release checks.
     private readonly AppUpdateService updateService = new();
+
+    // Server-mode queue of scans that still need to be sent to the receiver.
     private readonly List<BufferedScan> bufferedScans = [];
+
+    // Timer that submits scanner input after a quiet period when Enter is absent.
     private readonly System.Windows.Forms.Timer scanIdleTimer = new();
+
+    // Runtime settings loaded from and saved to the user profile.
     private AppSettings settings = AppSettingsStore.Load();
+
+    // True while the app is shutting down to hand off to the external updater.
     private bool isApplyingUpdate;
+
+    // True while UI controls should reject new user actions.
     private bool isBusy;
+
+    // True while a GitHub release update check is already running.
     private bool isCheckingForUpdates;
+
+    // True while the server-mode queued scans are being flushed to the receiver.
     private bool isFlushing;
+
+    // True while a scanner submission is already being processed.
     private bool isSubmitting;
+
+    // True while the app clears the input box programmatically after a scan.
     private bool suppressInputTimer;
+
+    // Number of submitted scans captured during the current app session.
     private int totalScansTaken;
+
+    // Number of server-mode scans sent successfully during the current session.
     private int totalScansSent;
+
+    // Number of CSV-mode scans appended successfully during the current session.
     private int totalScansSavedToCsv;
+
+    // Number of server send failures or CSV write failures during the session.
     private int failedSends;
+
+    // Number of scans that failed local validation during the current session.
     private int rejectedScans;
+
+    // Last scan-processing error shown in the status strip without crashing.
+    private string? lastScanErrorMessage;
 
     public MainForm()
     {
         InitializeComponent();
         Text = $"{AppTitle} v{GetVersion()}";
-        lastBarcodeValueLabel.Text = "None";
+        UpdateSessionScanCountDisplay();
         if (!settings.CsvModeEnabled)
         {
             RestoreQueuedScans();
@@ -306,7 +348,7 @@ public partial class MainForm : Form
         isSubmitting = true;
         try
         {
-            SaveSettings();
+            lastScanErrorMessage = null;
             totalScansTaken++;
 
             BarcodeValidationResult validation = BarcodeValidator.Validate(rawBarcode);
@@ -320,16 +362,17 @@ public partial class MainForm : Form
                 rejectedScans++;
             }
 
-            DataGridViewRow row = AddScanRow(scan);
-            lastBarcodeValueLabel.Text = loggedBarcode;
+            UpdateSessionScanCountDisplay();
             ClearScanInput();
 
             if (settings.CsvModeEnabled)
             {
-                SaveScanToCsv(scan, row, validation);
+                SaveScanToCsv(scan, validation);
+                TryAddCsvScanHistoryRow(scan);
                 return;
             }
 
+            DataGridViewRow row = AddScanRow(scan);
             if (!validation.CanSend)
             {
                 scan.Status = ScanSendStatus.Rejected;
@@ -351,6 +394,11 @@ public partial class MainForm : Form
                 bufferedScans.Insert(0, bufferedScan);
                 PersistBufferedScans();
             }
+        }
+        catch (Exception ex)
+        {
+            failedSends++;
+            lastScanErrorMessage = ex.Message;
         }
         finally
         {
@@ -436,7 +484,6 @@ public partial class MainForm : Form
 
     private void SaveScanToCsv(
         ScanRecord scan,
-        DataGridViewRow row,
         BarcodeValidationResult validation)
     {
         try
@@ -447,14 +494,13 @@ public partial class MainForm : Form
             scan.Message = validation.CanSend
                 ? $"Saved to CSV: {settings.CsvFilePath}"
                 : $"Saved rejected scan to CSV: {validation.Message}";
-            UpdateScanRow(row, scan);
         }
         catch (Exception ex)
         {
             failedSends++;
+            lastScanErrorMessage = ex.Message;
             scan.Status = ScanSendStatus.Failed;
             scan.Message = $"CSV save failed: {ex.Message}";
-            UpdateScanRow(row, scan);
         }
     }
 
@@ -497,7 +543,6 @@ public partial class MainForm : Form
 
             DataGridViewRow row = AddScanRow(scan);
             bufferedScans.Add(new BufferedScan(scan, row));
-            lastBarcodeValueLabel.Text = scan.Barcode;
         }
 
         PersistBufferedScans();
@@ -559,6 +604,29 @@ public partial class MainForm : Form
         DataGridViewRow row = scanLogGrid.Rows[0];
         ApplyScanRowStyle(row, scan.Status);
         return row;
+    }
+
+    private void TryAddCsvScanHistoryRow(ScanRecord scan)
+    {
+        try
+        {
+            AddScanRow(scan);
+            PruneCsvScanHistoryRows();
+        }
+        catch (Exception ex)
+        {
+            lastScanErrorMessage ??= $"CSV history update failed: {ex.Message}";
+        }
+    }
+
+    private void PruneCsvScanHistoryRows()
+    {
+        while (scanLogGrid.Rows.Count > MaximumDisplayedCsvScanRows)
+        {
+            // Remove the oldest visible row because new rows are inserted at index zero.
+            int oldestVisibleRowIndex = scanLogGrid.Rows.Count - 1;
+            scanLogGrid.Rows.RemoveAt(oldestVisibleRowIndex);
+        }
     }
 
     private void UpdateScanRow(DataGridViewRow row, ScanRecord scan, string? status = null)
@@ -642,21 +710,49 @@ public partial class MainForm : Form
 
     private void UpdateStatsStatusLine()
     {
+        string statusText;
         if (settings.CsvModeEnabled)
         {
-            statusLabel.Text =
+            statusText =
                 $"Total scans: {totalScansTaken}   CSV saved: {totalScansSavedToCsv}   "
                 + $"CSV failures: {failedSends}   Rejected: {rejectedScans}";
         }
         else
         {
-            statusLabel.Text =
+            statusText =
                 $"Total scans: {totalScansTaken}   Sent: {totalScansSent}   "
                 + $"Queued: {bufferedScans.Count}   Send failures: {failedSends}   "
                 + $"Rejected: {rejectedScans}";
         }
 
+        if (!string.IsNullOrWhiteSpace(lastScanErrorMessage))
+        {
+            statusText += $"   Last error: {FormatStatusError(lastScanErrorMessage)}";
+        }
+
+        statusLabel.Text = statusText;
+        UpdateSessionScanCountDisplay();
         UpdateClearQueueButtonState();
+    }
+
+    private void UpdateSessionScanCountDisplay()
+    {
+        sessionScanCountValueLabel.Text = totalScansTaken.ToString("N0");
+    }
+
+    private static string FormatStatusError(string errorMessage)
+    {
+        string singleLineMessage = errorMessage
+            .Replace('\r', ' ')
+            .Replace('\n', ' ')
+            .Trim();
+
+        if (singleLineMessage.Length <= MaximumStatusErrorLength)
+        {
+            return singleLineMessage;
+        }
+
+        return singleLineMessage[..MaximumStatusErrorLength] + "...";
     }
 
     private void UpdateClearQueueButtonState()

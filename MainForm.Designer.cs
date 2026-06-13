@@ -14,8 +14,8 @@ partial class MainForm
     private Button connectButton = null!;
     private Button settingsButton = null!;
     private Button clearQueueButton = null!;
-    private Label lastBarcodeCaptionLabel = null!;
-    private Label lastBarcodeValueLabel = null!;
+    private Label sessionScanCountCaptionLabel = null!;
+    private Label sessionScanCountValueLabel = null!;
     private GroupBox scanGroupBox = null!;
     private TableLayoutPanel scanPanel = null!;
     private Label scanInputLabel = null!;
@@ -51,8 +51,8 @@ partial class MainForm
         connectButton = new Button();
         settingsButton = new Button();
         clearQueueButton = new Button();
-        lastBarcodeCaptionLabel = new Label();
-        lastBarcodeValueLabel = new Label();
+        sessionScanCountCaptionLabel = new Label();
+        sessionScanCountValueLabel = new Label();
         scanGroupBox = new GroupBox();
         scanPanel = new TableLayoutPanel();
         scanInputLabel = new Label();
@@ -104,7 +104,7 @@ partial class MainForm
         statusGroupBox.Text = "Connection Status";
         //
         // statusPanel
-        // 
+        //
         statusPanel.ColumnCount = 8;
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28F));
@@ -112,7 +112,7 @@ partial class MainForm
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108F));
-        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112F));
+        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 118F));
         statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         statusPanel.Controls.Add(serverStatusCaptionLabel, 0, 0);
         statusPanel.Controls.Add(serverIndicator, 1, 0);
@@ -120,8 +120,8 @@ partial class MainForm
         statusPanel.Controls.Add(connectButton, 3, 0);
         statusPanel.Controls.Add(settingsButton, 4, 0);
         statusPanel.Controls.Add(clearQueueButton, 5, 0);
-        statusPanel.Controls.Add(lastBarcodeCaptionLabel, 6, 0);
-        statusPanel.Controls.Add(lastBarcodeValueLabel, 7, 0);
+        statusPanel.Controls.Add(sessionScanCountCaptionLabel, 6, 0);
+        statusPanel.Controls.Add(sessionScanCountValueLabel, 7, 0);
         statusPanel.Dock = DockStyle.Fill;
         statusPanel.Location = new Point(3, 19);
         statusPanel.Name = "statusPanel";
@@ -130,7 +130,7 @@ partial class MainForm
         statusPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         statusPanel.Size = new Size(1004, 60);
         statusPanel.TabIndex = 0;
-        // 
+        //
         // serverStatusCaptionLabel
         // 
         serverStatusCaptionLabel.Anchor = AnchorStyles.Left;
@@ -197,27 +197,27 @@ partial class MainForm
         clearQueueButton.UseVisualStyleBackColor = true;
         clearQueueButton.Click += ClearQueueButton_Click;
         //
-        // lastBarcodeCaptionLabel
+        // sessionScanCountCaptionLabel
         //
-        lastBarcodeCaptionLabel.Anchor = AnchorStyles.Left;
-        lastBarcodeCaptionLabel.AutoSize = true;
-        lastBarcodeCaptionLabel.Location = new Point(605, 20);
-        lastBarcodeCaptionLabel.Name = "lastBarcodeCaptionLabel";
-        lastBarcodeCaptionLabel.Size = new Size(73, 15);
-        lastBarcodeCaptionLabel.TabIndex = 6;
-        lastBarcodeCaptionLabel.Text = "Last barcode";
-        // 
-        // lastBarcodeValueLabel
-        // 
-        lastBarcodeValueLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        lastBarcodeValueLabel.AutoEllipsis = true;
-        lastBarcodeValueLabel.Font = new Font("Consolas", 11F, FontStyle.Bold);
-        lastBarcodeValueLabel.Location = new Point(717, 14);
-        lastBarcodeValueLabel.Name = "lastBarcodeValueLabel";
-        lastBarcodeValueLabel.Size = new Size(274, 31);
-        lastBarcodeValueLabel.TabIndex = 7;
-        lastBarcodeValueLabel.Text = "None";
-        lastBarcodeValueLabel.TextAlign = ContentAlignment.MiddleLeft;
+        sessionScanCountCaptionLabel.Anchor = AnchorStyles.Left;
+        sessionScanCountCaptionLabel.AutoSize = true;
+        sessionScanCountCaptionLabel.Location = new Point(605, 20);
+        sessionScanCountCaptionLabel.Name = "sessionScanCountCaptionLabel";
+        sessionScanCountCaptionLabel.Size = new Size(81, 15);
+        sessionScanCountCaptionLabel.TabIndex = 6;
+        sessionScanCountCaptionLabel.Text = "Session scans";
+        //
+        // sessionScanCountValueLabel
+        //
+        sessionScanCountValueLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        sessionScanCountValueLabel.AutoEllipsis = true;
+        sessionScanCountValueLabel.Font = new Font("Consolas", 26F, FontStyle.Bold);
+        sessionScanCountValueLabel.Location = new Point(723, 10);
+        sessionScanCountValueLabel.Name = "sessionScanCountValueLabel";
+        sessionScanCountValueLabel.Size = new Size(268, 40);
+        sessionScanCountValueLabel.TabIndex = 7;
+        sessionScanCountValueLabel.Text = "0";
+        sessionScanCountValueLabel.TextAlign = ContentAlignment.MiddleLeft;
         // 
         // scanGroupBox
         // 

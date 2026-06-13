@@ -4,6 +4,15 @@ All notable changes to USB Scanner Client should be recorded here.
 
 ## Unreleased
 
+## v1.0.8 - 2026-06-13
+
+- Replaced the last-barcode header display with a large session scan count so
+  operators can read the current session total from farther away.
+- Improved direct CSV mode for high-volume sessions by removing per-scan settings
+  writes, keeping only the latest 500 scans in the on-screen history, and
+  continuing to write every scan to the configured CSV file.
+- Hardened CSV output so scanner values that look like spreadsheet formulas are
+  saved as text.
 - Fixed switching from CSV mode back to server mode so the main window restores
   server connection controls immediately without restarting.
 
